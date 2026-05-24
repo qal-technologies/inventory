@@ -158,7 +158,6 @@ export default function AdminHomePage() {
     },
   ];
 
-  
   const getBranchName = (id?: string) => {
     if (!id) return 'General';
     const branch = branches?.find((b) => b.id === id);
@@ -244,38 +243,40 @@ export default function AdminHomePage() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              flexWrap: 'wrap',
-              width: '100%',
+              overflowX: 'scroll',
+              scrollBehavior: 'smooth',
             }}>
-            <Filter
-              size={16}
-              color='var(--text-muted)'
-            />
-            <select
-              className='input-base'
-              style={{
-                width: 'auto',
-                minWidth: 170,
-                height: 40,
-                padding: '0 10px',
-              }}
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}>
-              <option value=''>All Branches</option>
-              {branchNames.map((b) => (
-                <option
-                  key={b}
-                  value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Filter
+                size={16}
+                color='var(--text-muted)'
+              />
+              <select
+                className='input-base'
+                style={{
+                  width: 'auto',
+                  minWidth: 150,
+                  height: 40,
+                  padding: '0 10px',
+                }}
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}>
+                <option value=''>All Branches</option>
+                {branchNames.map((b) => (
+                  <option
+                    key={b}
+                    value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <select
               className='input-base'
               style={{
                 width: 'auto',
-                minWidth: 160,
+                minWidth: 140,
                 height: 40,
                 padding: '0 10px',
               }}

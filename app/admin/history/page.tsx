@@ -79,7 +79,7 @@ export default function AdminHistoryPage() {
 
           <select
             className='input-base'
-            style={{ width: 'auto', minWidth: 170, height: 40, padding: '0 10px' }}
+            style={{ width: 'auto', minWidth: 140, height: 40, padding: '0 10px' }}
             value={branchFilter}
             onChange={(e) => setBranchFilter(e.target.value)}>
             <option value=''>All Branches</option>
@@ -94,7 +94,7 @@ export default function AdminHistoryPage() {
 
           <select
             className='input-base'
-            style={{ width: 'auto', minWidth: 160, height: 40, padding: '0 10px' }}
+            style={{ width: 'auto', minWidth: 140, height: 40, padding: '0 10px' }}
             value={monthFilter}
             onChange={(e) => setMonthFilter(e.target.value)}>
             <option value=''>All Months</option>
@@ -112,7 +112,7 @@ export default function AdminHistoryPage() {
       {/* Summary cards */}
       <div
         className='stats-grid'
-        style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 20 }}>
+        style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 20, gridAutoFlow: 'column', overflowX: 'scroll', scrollBehavior: 'smooth' }}>
         <div className='stat-card'>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             Total Revenue

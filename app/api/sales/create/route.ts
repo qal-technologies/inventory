@@ -19,18 +19,37 @@ export async function POST(req: NextRequest) {
     // Validate stock and compute profit inside a transaction
     const saleRef = adminDb.collection('sales').doc();
 
+    const prodRefs = items.map((item: any) =>
+      adminDb.collection('products').doc(item.productId),
+    );
+
     await adminDb.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
+      const prodDocs = await Promise.all(
+        prodRefs.map((ref: any) => tx.get(ref)),
+      );
+
+      for (let i = 0; i < prodDocs.length; i++) {
+        const prodDoc = prodDocs[i];
+        const item = items[i];
+
+        if (!prodDoc.exists) {
+          throw new Error(`Product ${item.productId} not found`);
+        }
+
+        const prod = prodDoc.data()!;
+        if (prod.stock < item.qty) {
+          throw new Error(`Insufficient stock for "${prod.name}"`);
+        }
+      }
+
       let subtotal = 0;
       let grossProfit = 0;
       const saleItems = [];
 
-      for (const item of items) {
-        const prodRef = adminDb.collection('products').doc(item.productId);
-        const prodDoc = await tx.get(prodRef);
-        if (!prodDoc.exists) throw new Error(`Product ${item.productId} not found`);
-
+      for (let i = 0; i < prodDocs.length; i++) {
+        const prodDoc = prodDocs[i];
+        const item = items[i];
         const prod = prodDoc.data()!;
-        if (prod.stock < item.qty) throw new Error(`Insufficient stock for "${prod.name}"`);
 
         const itemRevenue = prod.sellingPrice * item.qty;
         const itemCost = prod.buyingPrice * item.qty;
@@ -49,7 +68,10 @@ export async function POST(req: NextRequest) {
         });
 
         const newStock = prod.stock - item.qty;
-        tx.update(prodRef, { stock: newStock, updatedAt: new Date().toISOString() });
+        tx.update(prodRefs[i], {
+          stock: newStock,
+          updatedAt: new Date().toISOString(),
+        });
 
         const reorderLimit = prod.reorder || 5;
         if (newStock <= reorderLimit) {

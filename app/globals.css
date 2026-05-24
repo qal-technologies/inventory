@@ -133,7 +133,7 @@ a {
 
 /* Bottom Tab Bar */
 .tab-bar {
-  width: 85vmin;
+  width: 90vmin;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -711,6 +711,7 @@ a {
 }
 @media (min-width: 768px) {
   .stats-grid {
+    display: grid;
     grid-template-columns: repeat(4, 1fr);
   }
 }
