@@ -45,11 +45,11 @@ export default function ProductCard({ product, index = 0 }: Props) {
         <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-deep)', marginBottom: 2 }}>
           {currency}{product.sellingPrice.toLocaleString()}
         </p>
-        {/* {outOfStock ? (
+        {outOfStock ? (
           <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>Out of stock</span>
         ) : (
           <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>{product.stock} in stock</span>
-        )} */}
+        )}
         <motion.button
           className="btn btn-primary btn-sm"
           style={{ width: '100%', marginTop: 12, borderRadius:'var(--radius-xl)' }}

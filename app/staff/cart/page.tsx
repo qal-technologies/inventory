@@ -232,6 +232,8 @@ export default function StaffCartPage() {
               className='btn btn-primary'
               style={{ width: '100%', marginTop: 16, padding: '14px 24px' }}
               onClick={handleProceed}
+              //find a way to check if any of the items have passed the stock quantity.
+              disabled={!!items.find((t, i)=>{t.qty > t.qty + 1 } )}
               whileTap={{ scale: 0.97 }}>
               Proceed to Checkout
             </motion.button>

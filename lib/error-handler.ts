@@ -49,7 +49,7 @@ export function getFriendlyErrorMessage(err: any, fallback = 'Action failed'): s
     msg.includes('wrong-password') ||
     msg.includes('user-not-found')
   ) {
-    return '🔑 Invalid Login Credentials: Check your email and password spelling.';
+    return '🔑 Invalid Login Credentials: Check your email and password.';
   }
   if (msg.includes('auth/email-already-in-use')) {
     return '📧 Email Already In Use: Try using a different email address.';
