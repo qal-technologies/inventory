@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Receipt, Filter } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
+import {useBranches} from '@/lib/hooks/useBranches';
 
 export default function AdminHistoryPage() {
   const { data: sales, isLoading } = useSales();
@@ -11,10 +12,11 @@ export default function AdminHistoryPage() {
   const [monthFilter, setMonthFilter] = useState('');
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
-  const branches = useMemo(() => {
-    if (!sales) return [];
-    return [...new Set(sales.map((s) => s.branchName).filter(Boolean))];
-  }, [sales]);
+  const { data: branches } = useBranches();
+  const branchNames = useMemo(() => {
+    if (!branches) return [];
+    return branches?.map((b) => b.name).filter(Boolean);
+  }, [branches]);
 
   // Dynamically extract month options (YYYY-MM) from sales records
   const monthOptions = useMemo(() => {
@@ -83,7 +85,7 @@ export default function AdminHistoryPage() {
             value={branchFilter}
             onChange={(e) => setBranchFilter(e.target.value)}>
             <option value=''>All Branches</option>
-            {branches.map((b) => (
+            {branchNames.map((b) => (
               <option
                 key={b}
                 value={b}>
