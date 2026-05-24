@@ -8,10 +8,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const navItems = [
-  { href: '/admin/home', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/home', icon: LayoutDashboard, label: 'Home' },
   { href: '/admin/inventory', icon: Package, label: 'Inventory' },
-  { href: '/admin/history', icon: Receipt, label: 'History' },
-  { href: '/admin/profile', icon: UserCircle, label: 'Profile' },
+  { href: '/admin/history', icon: Receipt, label: 'Sales' },
+  { href: '/admin/profile', icon: UserCircle, label: 'Admin' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

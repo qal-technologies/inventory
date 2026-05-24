@@ -133,12 +133,12 @@ a {
 
 /* Bottom Tab Bar */
 .tab-bar {
-  width: 80vmin;
+  width: 85vmin;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  margin: 10px;
+  margin: 10px auto;
   border-radius: 50px;
   height: 70px;
   background: rgba(255, 255, 255, 0.6);
@@ -152,6 +152,7 @@ a {
   border: 1px solid var(--border);
   padding-block: 10px;
   box-shadow: 0 -4px 24px rgba(247, 169, 184, 0.12);
+  overflow: hidden;
 }
 .tab-item {
   display: flex;
@@ -207,7 +208,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
   background: linear-gradient(165deg, #fff7f8 0%, #fde8ed 50%, #fdf2f4 100%);
 }
 .auth-card {
@@ -217,7 +218,7 @@ a {
   backdrop-filter: blur(20px);
   border: 0.3px dotted var(--border);
   border-radius: var(--radius-xxl);
-  padding: 40px 30px;
+  padding: 30px 20px;
   box-shadow: var(--shadow-pink);
 }
 

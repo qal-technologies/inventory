@@ -206,7 +206,7 @@ export default function AdminProfilePage() {
       </div>
 
       {/* Tabs list */}
-      <div className="tabs" style={{ marginBottom: 24, maxWidth: 210 }}>
+      <div className="tabs" style={{ marginBottom: 24, width:'max-content' }}>
         <button
           className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
           onClick={() => setActiveTab('profile')}

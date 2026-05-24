@@ -239,7 +239,14 @@ export default function AdminHomePage() {
             )}
           </Link>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
+              width: '100%',
+            }}>
             <Filter
               size={16}
               color='var(--text-muted)'

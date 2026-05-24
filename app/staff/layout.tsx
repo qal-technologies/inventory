@@ -80,7 +80,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
               Skincare Bestie
             </h4>
             <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-              {branch?.branchName ? branch.branchName + ' branch' : 'No branch'}
+              {branch?.branchName ? branch.branchName.charAt(0).toUpperCase() + branch.branchName.slice(1) + ' branch' : 'No branch'}
             </p>
           </div>
         </motion.div>
