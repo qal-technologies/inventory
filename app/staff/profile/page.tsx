@@ -19,6 +19,7 @@ export default function StaffProfilePage() {
   const today = new Date().toDateString();
   const todaySales = sales?.filter((s) => new Date(s.createdAt).toDateString() === today) || [];
   const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0);
+  const allBranchSales = sales?.length ?? 0;
 
   const handleLogout = async () => {
     try {
@@ -35,11 +36,11 @@ export default function StaffProfilePage() {
 
   return (
     <motion.div
-      style={{ padding: '16px 16px 0' }}
+      style={{ padding: '16px 16px 80px' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
-      <h2 style={{ marginBottom: 20 }}>Profile</h2>
+      <h2 style={{ marginBottom: 20 }}>My Profile</h2>
 
       {/* User info card */}
       <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
@@ -58,34 +59,46 @@ export default function StaffProfilePage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: '0.875rem' }}>
           <MapPin size={16} />
-          <span>{branch?.branchName || 'No branch'}</span>
-          <span className="badge badge-pink" style={{ marginLeft: 'auto' }}>{user?.role}</span>
+          <span>{branch?.branchName || 'No branch selected'}</span>
+          <span className="badge badge-pink" style={{ marginLeft: 'auto' }}>
+            {user?.role}
+          </span>
         </div>
       </div>
 
       {/* Stats */}
-      {/* <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 16 }}>
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 16 }}>
         <motion.div className="stat-card" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <ShoppingBag size={20} color="var(--accent-deep)" />
+          <ShoppingBag size={18} color="var(--accent-deep)" />
           <p style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: 4 }}>{todaySales.length}</p>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sales Today</p>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sales Today</p>
         </motion.div>
         <motion.div className="stat-card" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <TrendingUp size={20} color="var(--success)" />
-          <p style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: 4 }}>{currency}{todayRevenue.toLocaleString()}</p>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Revenue Today</p>
+          <TrendingUp size={18} color="var(--success)" />
+          <p style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: 4 }}>{currency}{todayRevenue.toLocaleString()}</p>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Revenue Today</p>
         </motion.div>
         <motion.div className="stat-card" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Calendar size={20} color="var(--info)" />
-          <p style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: 4 }}>{sales?.length || 0}</p>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Sales</p>
+          <Calendar size={18} color="var(--info)" />
+          <p style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: 4 }}>{allBranchSales}</p>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Branch Total</p>
         </motion.div>
-      </div> */}
+      </div>
+
+      {/* Change Branch */}
+      <motion.button
+        className="btn btn-secondary"
+        style={{ width: '100%', marginBottom: 10 }}
+        onClick={() => router.push('/staff/select-branch')}
+        whileTap={{ scale: 0.97 }}
+      >
+        <MapPin size={16} /> Switch Branch
+      </motion.button>
 
       {/* Logout */}
       <motion.button
         className="btn btn-danger"
-        style={{ width: '100%', marginTop: 8, maxWidth:'150px' }}
+        style={{ width: '100%' }}
         onClick={handleLogout}
         whileTap={{ scale: 0.97 }}
       >

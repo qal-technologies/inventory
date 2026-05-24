@@ -13,9 +13,9 @@ interface CartState {
   discount: number;
   discountType: 'flat' | 'percent';
 
-  addItem: (product: Product) => void;
+  addItem: (product: Product) => { success: boolean; message?: string };
   removeItem: (productId: string) => void;
-  updateQty: (productId: string, qty: number) => void;
+  updateQty: (productId: string, qty: number) => { success: boolean; message?: string };
   setDiscount: (value: number) => void;
   setDiscountType: (type: 'flat' | 'percent') => void;
   clearCart: () => void;
@@ -25,6 +25,9 @@ interface CartState {
   discountAmount: () => number;
   total: () => number;
   itemCount: () => number;
+
+  // Validation
+  hasStockIssues: () => boolean;
 }
 
 export const useCartStore = create<CartState>()(
@@ -37,14 +40,25 @@ export const useCartStore = create<CartState>()(
       addItem: (product) => {
         const existing = get().items.find((i) => i.product.id === product.id);
         if (existing) {
+          // Check if adding one more would exceed stock
+          if (existing.qty >= product.stock) {
+            return {
+              success: false,
+              message: `Only ${product.stock} unit${product.stock === 1 ? '' : 's'} in stock`,
+            };
+          }
           set({
             items: get().items.map((i) =>
               i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i
             ),
           });
         } else {
+          if (product.stock <= 0) {
+            return { success: false, message: 'Product is out of stock' };
+          }
           set({ items: [...get().items, { product, qty: 1 }] });
         }
+        return { success: true };
       },
 
       removeItem: (productId) =>
@@ -53,13 +67,27 @@ export const useCartStore = create<CartState>()(
       updateQty: (productId, qty) => {
         if (qty <= 0) {
           get().removeItem(productId);
-          return;
+          return { success: true };
+        }
+        const item = get().items.find((i) => i.product.id === productId);
+        if (item && qty > item.product.stock) {
+          // Clamp to max stock silently and return message
+          set({
+            items: get().items.map((i) =>
+              i.product.id === productId ? { ...i, qty: item.product.stock } : i
+            ),
+          });
+          return {
+            success: false,
+            message: `Only ${item.product.stock} unit${item.product.stock === 1 ? '' : 's'} available`,
+          };
         }
         set({
           items: get().items.map((i) =>
             i.product.id === productId ? { ...i, qty } : i
           ),
         });
+        return { success: true };
       },
 
       setDiscount: (value) => set({ discount: Math.max(0, value) }),
@@ -80,6 +108,9 @@ export const useCartStore = create<CartState>()(
       total: () => get().subtotal() - get().discountAmount(),
 
       itemCount: () => get().items.reduce((sum, i) => sum + i.qty, 0),
+
+      hasStockIssues: () =>
+        get().items.some((i) => i.qty > i.product.stock),
     }),
     { name: 'inv-cart' }
   )

@@ -5,9 +5,10 @@ import { useSessionStore } from '@/store/sessionStore';
 
 export default function RootPage() {
   const router = useRouter();
-  const { user } = useSessionStore();
+  const { user, _hasHydrated } = useSessionStore();
 
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (!user) {
       router.replace('/login');
     } else if (user.role === 'admin') {
@@ -15,7 +16,7 @@ export default function RootPage() {
     } else {
       router.replace('/staff/home');
     }
-  }, [user, router]);
+  }, [user, router, _hasHydrated]);
 
   return (
     <div className="auth-container">

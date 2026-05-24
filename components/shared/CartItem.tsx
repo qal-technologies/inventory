@@ -1,7 +1,8 @@
 'use client';
 import { motion } from 'framer-motion';
 import { useCartStore, type CartItem as CartItemType } from '@/store/cartStore';
-import { Minus, Plus, Trash2, Package } from 'lucide-react';
+import { Minus, Plus, Trash2, Package, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface Props {
   item: CartItemType;
@@ -12,6 +13,18 @@ export default function CartItem({ item }: Props) {
   const removeItem = useCartStore((s) => s.removeItem);
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
   const maxQty = item.product.stock;
+  const isAtMax = item.qty >= maxQty;
+
+  const handleIncrease = () => {
+    const result = updateQty(item.product.id, item.qty + 1);
+    if (!result.success && result.message) {
+      toast.error(result.message, { icon: '⚠️', id: `stock-${item.product.id}` });
+    }
+  };
+
+  const handleDecrease = () => {
+    updateQty(item.product.id, item.qty - 1);
+  };
 
   return (
     <motion.div
@@ -25,10 +38,10 @@ export default function CartItem({ item }: Props) {
         gap: 6,
         padding: '6px',
         paddingRight: '10px',
-        border: '0.5px solid var(--pink-100)',
+        border: `0.5px solid ${isAtMax ? 'var(--warning)' : 'var(--pink-100)'}`,
         borderRadius: 'var(--radius-lg)',
         marginBottom: '6px',
-        backgroundColor: 'transparent',
+        backgroundColor: isAtMax ? 'rgba(245, 158, 11, 0.04)' : 'transparent',
         backdropFilter: 'blur(10px)',
         alignItems: 'center',
       }}>
@@ -80,6 +93,11 @@ export default function CartItem({ item }: Props) {
           {currency}
           {item.product.sellingPrice.toLocaleString()}
         </p>
+        {isAtMax && (
+          <p style={{ fontSize: '0.7rem', color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
+            <AlertTriangle size={10} /> Max stock reached
+          </p>
+        )}
       </div>
 
       {/* Qty Controls */}
@@ -92,7 +110,7 @@ export default function CartItem({ item }: Props) {
         }}>
         <motion.button
           whileTap={{ scale: 0.85 }}
-          onClick={() => updateQty(item.product.id, item.qty - 1)}
+          onClick={handleDecrease}
           className='btn btn-secondary btn-sm'
           style={{
             padding: '5px',
@@ -108,21 +126,21 @@ export default function CartItem({ item }: Props) {
             fontSize: '0.9rem',
             minWidth: 24,
             textAlign: 'center',
+            color: isAtMax ? 'var(--warning)' : 'var(--text-primary)',
           }}>
           {item.qty}
         </span>
         <motion.button
           whileTap={{ scale: 0.85 }}
-          onClick={() =>
-            updateQty(item.product.id, Math.min(item.qty + 1, maxQty))
-          }
-          disabled={item.qty >= maxQty}
+          onClick={handleIncrease}
+          disabled={isAtMax}
           className='btn btn-primary btn-sm'
           style={{
             padding: '5px',
             width: 30,
             height: 30,
             borderRadius: 'var(--radius-lg)',
+            opacity: isAtMax ? 0.5 : 1,
           }}>
           <Plus size={14} />
         </motion.button>

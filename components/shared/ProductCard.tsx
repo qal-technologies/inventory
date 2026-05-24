@@ -2,8 +2,9 @@
 import { motion } from 'framer-motion';
 import type { Product } from '@/lib/firebase/converters';
 import { useCartStore } from '@/store/cartStore';
-import { ShoppingCart, Package } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 interface Props {
   product: Product;
@@ -12,16 +13,35 @@ interface Props {
 
 export default function ProductCard({ product, index = 0 }: Props) {
   const addItem = useCartStore((s) => s.addItem);
+  const items = useCartStore((s) => s.items);
   const [added, setAdded] = useState(false);
   const outOfStock = product.stock <= 0;
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
+  // Current qty already in cart for this product
+  const cartItem = items.find((i) => i.product.id === product.id);
+  const inCartQty = cartItem?.qty ?? 0;
+  const isAtMax = inCartQty >= product.stock;
+
   const handleAdd = () => {
     if (outOfStock) return;
-    addItem(product);
+    const result = addItem(product);
+    if (!result.success) {
+      toast.error(result.message || 'Cannot add more', { icon: '⚠️', id: `stock-${product.id}` });
+      return;
+    }
     setAdded(true);
-    setTimeout(() => setAdded(false), 800);
+    setTimeout(() => setAdded(false), 900);
   };
+
+  const stockLabel = () => {
+    if (outOfStock) return 'Out of stock';
+    if (isAtMax) return `${inCartQty} in cart (max)`;
+    if (inCartQty > 0) return `${product.stock - inCartQty} remaining`;
+    return `${product.stock} in stock`;
+  };
+
+  const stockBadgeClass = outOfStock ? 'badge-danger' : isAtMax ? 'badge-warning' : 'badge-success';
 
   return (
     <motion.div
@@ -45,20 +65,17 @@ export default function ProductCard({ product, index = 0 }: Props) {
         <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-deep)', marginBottom: 2 }}>
           {currency}{product.sellingPrice.toLocaleString()}
         </p>
-        {outOfStock ? (
-          <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>Out of stock</span>
-        ) : (
-          <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>{product.stock} in stock</span>
-        )}
+        <span className={`badge ${stockBadgeClass}`} style={{ fontSize: '0.7rem' }}>
+          {stockLabel()}
+        </span>
         <motion.button
           className="btn btn-primary btn-sm"
-          style={{ width: '100%', marginTop: 12, borderRadius:'var(--radius-xl)' }}
+          style={{ width: '100%', marginTop: 12, borderRadius: 'var(--radius-xl)', opacity: (outOfStock || isAtMax) ? 0.65 : 1 }}
           onClick={handleAdd}
-          disabled={outOfStock}
-          whileTap={{ scale: 0.95 }}
+          disabled={outOfStock || isAtMax}
+          whileTap={{ scale: outOfStock || isAtMax ? 1 : 0.95 }}
         >
-          {/* <ShoppingCart size={14} /> */}
-          {added ? 'Added ✓' : outOfStock ? 'Unavailable' : 'Add to Cart'}
+          {added ? 'Added ✓' : outOfStock ? 'Unavailable' : isAtMax ? 'Cart Full' : 'Add to Cart'}
         </motion.button>
       </div>
     </motion.div>
