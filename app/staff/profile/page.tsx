@@ -66,7 +66,7 @@ export default function StaffProfilePage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 16 }}>
         <motion.div className="stat-card" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <ShoppingBag size={18} color="var(--accent-deep)" />
@@ -83,17 +83,17 @@ export default function StaffProfilePage() {
           <p style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: 4 }}>{allBranchSales}</p>
           <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Branch Total</p>
         </motion.div>
-      </div>
+      </div> */}
 
       {/* Change Branch */}
-      <motion.button
+      {/* <motion.button
         className="btn btn-secondary"
         style={{ width: '100%', marginBottom: 10 }}
         onClick={() => router.push('/staff/select-branch')}
         whileTap={{ scale: 0.97 }}
       >
         <MapPin size={16} /> Switch Branch
-      </motion.button>
+      </motion.button> */}
 
       {/* Logout */}
       <motion.button
