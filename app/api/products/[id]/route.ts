@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { getSession } from '@/lib/auth/session';
 import { deleteCloudinaryImage } from '@/lib/cloudinaryAdmin';
+import { triggerAdminPush } from '@/lib/push/triggerPush';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,14 +31,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const newStock = updates.stock !== undefined ? updates.stock : prod.stock;
     const reorderVal = updates.reorder !== undefined ? updates.reorder : (prod.reorder || 5);
     if (newStock <= reorderVal) {
+      const title = newStock === 0 ? 'Out of Stock' : 'Low Stock Alert';
+      const message = `${updates.name || prod.name} has been updated to ${newStock} units left at branch ${updates.branchId || prod.branchId}`;
+      const type = newStock === 0 ? 'danger' : 'warning';
+
       await adminDb.collection('notifications').add({
-        type: newStock === 0 ? 'danger' : 'warning',
-        title: newStock === 0 ? 'Out of Stock' : 'Low Stock Alert',
-        message: `${updates.name || prod.name} has been updated to ${newStock} units left at branch ${updates.branchId || prod.branchId}`,
+        type,
+        title,
+        message,
         branchId: updates.branchId || prod.branchId,
         productId: id,
         read: false,
         createdAt: new Date().toISOString(),
+      });
+
+      await triggerAdminPush({
+        title,
+        body: message,
+        icon: '/favicon.png',
+        badge: '/favicon.png',
+        tag: type,
+        url: '/admin/notifications',
       });
     }
   }
