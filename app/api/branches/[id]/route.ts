@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { adminDb } from '@/lib/firebase/admin';
 import { getSession } from '@/lib/auth/session';
 import { deleteCloudinaryImage } from '@/lib/cloudinaryAdmin';
+import { triggerAdminPush } from '@/lib/push/triggerPush';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -73,13 +74,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
 
       // Create a notification for the rename
+      const title = 'Branch Renamed';
+      const message = `Branch "${oldName}" has been renamed to "${newName}". All sales records updated.`;
+
       await adminDb.collection('notifications').add({
         type: 'info',
-        title: 'Branch Renamed',
-        message: `Branch "${oldName}" has been renamed to "${newName}". All sales records updated.`,
+        title,
+        message,
         branchId: id,
         read: false,
         createdAt: new Date().toISOString(),
+      });
+
+      await triggerAdminPush({
+        title,
+        body: message,
+        icon: '/favicon.png',
+        badge: '/favicon.png',
+        tag: 'info',
+        url: '/admin/notifications',
       });
     }
 
@@ -97,6 +110,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { id } = await params;
+    let pendingPushesForBatch: any[] = [];
 
     // 1. Fetch branch info for notification
     const branchDoc = await adminDb.collection('branches').doc(id).get();
@@ -140,17 +154,31 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         batch.delete(adminDb.collection('branches').doc(id));
 
         const notifRef = adminDb.collection('notifications').doc();
+        const title = 'Branch Deleted';
+        const message = `Branch "${branchName}" and its ${productCount} product(s) and ${salesCount} sale record(s) have been permanently deleted.`;
+
         batch.set(notifRef, {
           type: 'info',
-          title: 'Branch Deleted',
-          message: `Branch "${branchName}" and its ${productCount} product(s) and ${salesCount} sale record(s) have been permanently deleted.`,
+          title,
+          message,
           branchId: id,
           read: false,
           createdAt: new Date().toISOString(),
         });
+
+        pendingPushesForBatch.push({
+          title,
+          body: message,
+          icon: '/favicon.png',
+          badge: '/favicon.png',
+          tag: 'info',
+          url: '/admin/notifications',
+        });
       }
 
       await batch.commit();
+      await Promise.allSettled(pendingPushesForBatch.map(p => triggerAdminPush(p)));
+      pendingPushesForBatch = [];
     }
 
     // Delete sales in chunks (separate batches after branch/products are gone)

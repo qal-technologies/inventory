@@ -27,12 +27,14 @@ export async function POST(req: NextRequest) {
 
     // Validate stock and compute profit inside a transaction
     const saleRef = adminDb.collection('sales').doc();
+    const pendingPushes: any[] = [];
 
     const prodRefs = items.map((item: any) =>
       adminDb.collection('products').doc(item.productId),
     );
 
     await adminDb.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
+      pendingPushes.length = 0; // Clear on retry
       const prodDocs = await Promise.all(
         prodRefs.map((ref: any) => tx.get(ref)),
       );
@@ -85,14 +87,27 @@ export async function POST(req: NextRequest) {
         const reorderLimit = prod.reorder || 5;
         if (newStock <= reorderLimit) {
           const notifRef = adminDb.collection('notifications').doc();
+          const type = newStock === 0 ? 'danger' : 'warning';
+          const title = newStock === 0 ? 'Out of Stock' : 'Low Stock Alert';
+          const message = `${prod.name} has reached ${newStock} units left at ${branchName || branchId} branch.`;
+
           tx.set(notifRef, {
-            type: newStock === 0 ? 'danger' : 'warning',
-            title: newStock === 0 ? 'Out of Stock' : 'Low Stock Alert',
-            message: `${prod.name} has reached ${newStock} units left at ${branchName || branchId} branch.`,
+            type,
+            title,
+            message,
             branchId,
             productId: item.productId,
             read: false,
             createdAt: new Date().toISOString(),
+          });
+
+          pendingPushes.push({
+            title,
+            body: message,
+            icon: '/favicon.png',
+            badge: '/favicon.png',
+            tag: type,
+            url: '/admin/notifications',
           });
         }
       }
@@ -123,25 +138,30 @@ export async function POST(req: NextRequest) {
       });
 
       const saleNotifRef = adminDb.collection('notifications').doc();
+      const saleTitle = 'Sale Completed';
+      const saleMessage = `Sale processed successfully at ${branchName || branchId} branch.`;
+
       tx.set(saleNotifRef, {
         type: 'success',
-        title: 'Sale Completed',
-        message: `Sale processed successfully at ${branchName || branchId} branch.`,
+        title: saleTitle,
+        message: saleMessage,
         branchId,
         read: false,
         createdAt: new Date().toISOString(),
       });
+
+      pendingPushes.push({
+        title: saleTitle,
+        body: saleMessage,
+        icon: '/favicon.png',
+        badge: '/favicon.png',
+        tag: 'sale-completed',
+        url: '/admin/notifications',
+      });
     });
 
-    // Trigger push AFTER the transaction has committed successfully
-    triggerAdminPush({
-      title: 'Sale Completed',
-      body: `Sale processed at ${branchName || branchId} branch.`,
-      icon: '/favicon.png',
-      badge: '/favicon.png',
-      tag: 'sale-completed',
-      url: '/admin/notifications',
-    });
+    // Trigger all push notifications AFTER the transaction has committed successfully
+    await Promise.allSettled(pendingPushes.map(push => triggerAdminPush(push)));
 
     return NextResponse.json({ saleId: saleRef.id }, { status: 201 });
   } catch (err: unknown) {

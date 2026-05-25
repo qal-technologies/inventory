@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Fire push to all admins
-    triggerAdminPush({
+    await triggerAdminPush({
       title,
       body: message,
       icon: '/favicon.png',

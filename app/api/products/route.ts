@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { getSession } from '@/lib/auth/session';
+import { triggerAdminPush } from '@/lib/push/triggerPush';
 
 // GET /api/products?branchId=xxx
 export async function GET(req: NextRequest) {
@@ -75,14 +76,27 @@ export async function POST(req: NextRequest) {
     const stockVal = Number(stock) || 0;
     const reorderVal = Number(reorder) || 5;
     if (stockVal <= reorderVal) {
+      const title = stockVal === 0 ? 'Out of Stock' : 'Low Stock Alert';
+      const message = `${name} has been added with ${stockVal} units left at branch ${branchId}`;
+      const type = stockVal === 0 ? 'danger' : 'warning';
+
       await adminDb.collection('notifications').add({
-        type: stockVal === 0 ? 'danger' : 'warning',
-        title: stockVal === 0 ? 'Out of Stock' : 'Low Stock Alert',
-        message: `${name} has been added with ${stockVal} units left at branch ${branchId}`,
+        type,
+        title,
+        message,
         branchId,
         productId: docRef.id,
         read: false,
         createdAt: new Date().toISOString(),
+      });
+
+      await triggerAdminPush({
+        title,
+        body: message,
+        icon: '/favicon.png',
+        badge: '/favicon.png',
+        tag: type,
+        url: '/admin/notifications',
       });
     }
 
