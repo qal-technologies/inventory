@@ -439,7 +439,6 @@ export default function AdminProfilePage() {
                       className='input-base'
                       placeholder='10-digit'
                       maxLength={10}
-                      max={10}
                       type='number'
                       value={branchForm.paymentAccount}
                       onChange={(e) =>
