@@ -5,7 +5,9 @@ import { LayoutDashboard, Package, UserCircle, Receipt } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSessionStore } from '@/store/sessionStore';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import {useRouter} from 'next/navigation';
+import { usePushSubscription } from '@/lib/hooks/usePushSubscription';
+
 
 const navItems = [
   { href: '/admin/home', icon: LayoutDashboard, label: 'Home' },
@@ -19,6 +21,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const { user, _hasHydrated } = useSessionStore();
   const [mounted, setMounted] = useState(false);
+  const isAdmin = user?.role === 'admin'; 
+  usePushSubscription(isAdmin);
 
   useEffect(() => {
     setMounted(true);

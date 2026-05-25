@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
-import { getSession } from '@/lib/auth/session';
+import {getSession} from '@/lib/auth/session';
+import { triggerAdminPush } from '@/lib/push/triggerPush';
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -48,6 +50,46 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session || session.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { title, message, type = 'info', branchId } = body;
+
+    if (!title || !message) {
+      return NextResponse.json({ error: 'title and message are required' }, { status: 400 });
+    }
+
+    const ref = await adminDb.collection('notifications').add({
+      title,
+      message,
+      type,
+      branchId: branchId ?? null,
+      read: false,
+      createdAt: new Date().toISOString(),
+    });
+
+    // Fire push to all admins
+    triggerAdminPush({
+      title,
+      body: message,
+      icon: '/favicon.png',
+      badge: '/favicon.png',
+      tag: type,
+      url: '/admin/notifications',
+    });
+
+    return NextResponse.json({ id: ref.id }, { status: 201 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Failed to create notification' }, { status: 500 });
+  }
+}
 
 export async function DELETE(req: NextRequest) {
   const session = await getSession();

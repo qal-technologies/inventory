@@ -1,20 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
-import { getSession, getBranchSession } from '@/lib/auth/session';
+import {getSession, getBranchSession} from '@/lib/auth/session';
+import { triggerAdminPush } from '@/lib/push/triggerPush';
+
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session)
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const branchSession = await getBranchSession();
     const body = await req.json();
 
-    const branchId = session.role === 'admin' ? body.branchId : branchSession?.branchId;
-    if (!branchId) return NextResponse.json({ error: 'No branch selected' }, { status: 400 });
+    const branchId =
+      session.role === 'admin' ? body.branchId : branchSession?.branchId;
+    if (!branchId)
+      return NextResponse.json(
+        { error: 'No branch selected' },
+        { status: 400 },
+      );
 
     const { items, discount = 0, discountType = 'flat', branchName } = body;
-    if (!items?.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
+    if (!items?.length)
+      return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
 
     // Validate stock and compute profit inside a transaction
     const saleRef = adminDb.collection('sales').doc();
@@ -89,8 +98,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Discount calc
-      const discountAmount = discountType === 'percent'
-        ? Math.min((discount / 100) * subtotal, subtotal)
+      const discountAmount =
+        discountType === 'percent' ?
+          Math.min((discount / 100) * subtotal, subtotal)
         : Math.min(discount, subtotal);
 
       const total = subtotal - discountAmount;
@@ -121,6 +131,16 @@ export async function POST(req: NextRequest) {
         read: false,
         createdAt: new Date().toISOString(),
       });
+    });
+
+    // Trigger push AFTER the transaction has committed successfully
+    triggerAdminPush({
+      title: 'Sale Completed',
+      body: `Sale processed at ${branchName || branchId} branch.`,
+      icon: '/favicon.png',
+      badge: '/favicon.png',
+      tag: 'sale-completed',
+      url: '/admin/notifications',
     });
 
     return NextResponse.json({ saleId: saleRef.id }, { status: 201 });
