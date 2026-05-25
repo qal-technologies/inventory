@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
           tx.set(notifRef, {
             type: newStock === 0 ? 'danger' : 'warning',
             title: newStock === 0 ? 'Out of Stock' : 'Low Stock Alert',
-            message: `${prod.name} has reached ${newStock} units left at branch ${branchName || branchId}`,
+            message: `${prod.name} has reached ${newStock} units left at ${branchName || branchId} branch.`,
             branchId,
             productId: item.productId,
             read: false,

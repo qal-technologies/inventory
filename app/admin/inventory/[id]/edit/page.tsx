@@ -27,6 +27,14 @@ export default function EditProductPage() {
     stock: '',
     branchId: '',
   });
+
+  const getBranchName = (id?: string) => {
+    if (!id) return 'General';
+    const branch = branches?.find((b) => b.id === id);
+    return branch?.name || id;
+  };
+
+
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
   const [loading, setLoading] = useState(false);
@@ -102,6 +110,7 @@ export default function EditProductPage() {
       if (!res.ok) throw new Error('Failed to update product');
       toast.success('Product updated successfully! 🎉');
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-product', id] });
       router.push('/admin/inventory');
     } catch (err) {
@@ -193,7 +202,7 @@ export default function EditProductPage() {
           <div className="form-group">
             <label className="form-label">Branch *</label>
             <select className="input-base" value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })} style={{ cursor: 'pointer' }}>
-              <option value="">Select branch...</option>
+              <option value="">{getBranchName(product?.branchId)}</option>
               {branches?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           </div>

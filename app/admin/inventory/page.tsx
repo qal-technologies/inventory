@@ -6,37 +6,43 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Package, Pencil, Trash2, ImageIcon, AlertTriangle, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { toastError } from '@/lib/error-handler';
-import {useBranches} from '@/lib/hooks/useBranches';
-import {useProducts} from '@/lib/hooks/useProducts';
+import { useBranches } from '@/lib/hooks/useBranches';
+import { useProducts } from '@/lib/hooks/useProducts';
+import { useAppStore } from '@/store/appStore';
 
 type Tab = 'products' | 'add';
 
 export default function AdminInventoryPage() {
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
-  const [branchFilter, setBranchFilter] = useState('');
   const queryClient = useQueryClient();
+
+  // Single source of truth — read branch filter directly from store
+  const { branch, setBranch } = useAppStore();
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
-  // Fetch branches
-  const {data: branches} = useBranches();
-  
+  const { data: branches } = useBranches();
 
   const getBranchName = (id?: string) => {
     if (!id) return 'General';
-    const branch = branches?.find((b) => b.id === id);
-    return branch?.name || id;
+    const b = branches?.find((b) => b.id === id);
+    return b?.name || id;
   };
 
-  // Fetch all products
-  const { data: products, isLoading } = useProducts(branchFilter || undefined);
+  // Resolve branch name → ID for product filtering
+  const branchId = useMemo(() => {
+    if (!branch) return undefined;
+    const found = branches?.find((b) => b.name === branch);
+    return found?.id;
+  }, [branch, branches]);
+
+  const { data: products, isLoading } = useProducts(branchId);
 
   const filtered = useMemo(() => {
     if (!products) return [];
     let list = products;
-    if (branchFilter) {
-      list = list.filter((p) => p.branchId === branchFilter);
-    }
+    // Products are already pre-filtered by branchId from the API hook
+    // Just apply the search filter
     if (!search.trim()) return list;
     const q = search.toLowerCase();
     return list.filter(
@@ -44,16 +50,12 @@ export default function AdminInventoryPage() {
         p.name.toLowerCase().includes(q) ||
         p?.category?.toLowerCase().includes(q)
     );
-  }, [products, search, branchFilter]);
+  }, [products, search]);
 
   const lowStockProducts = useMemo(() => {
     if (!products) return [];
-    let list = products;
-    if (branchFilter) {
-      list = list.filter((p) => p.branchId === branchFilter);
-    }
-    return list.filter((p) => p.stock <= (p.reorder || 5));
-  }, [products, branchFilter]);
+    return products.filter((p) => p.stock <= (p.reorder || 5));
+  }, [products]);
 
   // Delete product
   const deleteMut = useMutation({
@@ -62,7 +64,9 @@ export default function AdminInventoryPage() {
       if (!res.ok) throw new Error('Delete failed');
     },
     onSuccess: () => {
+      // Invalidate all product-related query keys
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       toast.success('Product deleted');
     },
     onError: (err) => toastError(err, 'Delete failed'),
@@ -160,12 +164,12 @@ export default function AdminInventoryPage() {
                 <select
                   className="input-base"
                   style={{ width: 'auto', minWidth: 170, height: 40, padding: '0 10px' }}
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
+                  value={branch || ''}
+                  onChange={(e) => setBranch(e.target.value || null)}
                 >
                   <option value="">All Branches</option>
                   {branches?.map((b) => (
-                    <option key={b.id} value={b.id}>
+                    <option key={b.id} value={b.name}>
                       {b.name}
                     </option>
                   ))}
@@ -344,6 +348,7 @@ export default function AdminInventoryPage() {
             key='add'
             onSuccess={() => {
               queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+              queryClient.invalidateQueries({ queryKey: ['products'] });
               setTab('products');
             }}
           />

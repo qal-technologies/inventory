@@ -25,6 +25,7 @@ import toast from 'react-hot-toast';
 import { toastError } from '@/lib/error-handler';
 import { fetchBranches } from '@/lib/services/branches';
 import Link from 'next/link';
+import { useAppStore } from '@/store/appStore';
 
 type Branch = {
   id: string;
@@ -39,6 +40,7 @@ export default function AdminProfilePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, clearSession } = useSessionStore();
+  const { branch: selectedBranch, setBranch: setSelectedBranch } = useAppStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'branches'>('profile');
 
   // Branch CRUD State
@@ -108,8 +110,16 @@ export default function AdminProfilePage() {
       if (!res.ok) throw new Error('Failed to update branch');
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // If branch was renamed and our filter was pointing at the old name, update it
+      const { oldName, newName } = data || {};
+      if (oldName && newName && oldName !== newName && selectedBranch === oldName) {
+        setSelectedBranch(newName);
+      }
       queryClient.invalidateQueries({ queryKey: ['branches'] });
+      // Re-fetch sales so dashboard/history reflect updated branchName on existing records
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
       toast.success('Branch details updated! 🎉');
       setEditingBranch(null);
     },
@@ -125,9 +135,22 @@ export default function AdminProfilePage() {
       if (!res.ok) throw new Error('Failed to delete branch');
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, deletedId) => {
+      // If the deleted branch was the active filter, clear it
+      const deletedBranch = branches?.find((b) => b.id === deletedId);
+      if (deletedBranch && selectedBranch === deletedBranch.name) {
+        setSelectedBranch(null);
+      }
       queryClient.invalidateQueries({ queryKey: ['branches'] });
-      toast.success('Branch deleted');
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+      const productCount = data?.deletedProducts ?? 0;
+      const salesCount = data?.deletedSales ?? 0;
+      toast.success(
+        `Branch deleted along with ${productCount} product(s) and ${salesCount} sale record(s)`
+      );
     },
     onError: (err) => toastError(err),
   });
@@ -513,7 +536,8 @@ export default function AdminProfilePage() {
                               className="btn btn-ghost btn-sm"
                               style={{ padding: 6, color: 'var(--danger)' }}
                               onClick={() => {
-                                if (confirm('Delete this branch? This might break products linked to it.')) {
+                                const productWarning = `⚠️ Delete "${b.name}" branch?\n\nThis will PERMANENTLY delete the branch AND all products linked to it.\n\nThis action cannot be undone.`;
+                                if (confirm(productWarning)) {
                                   deleteBranchMut.mutate(b.id);
                                 }
                               }}

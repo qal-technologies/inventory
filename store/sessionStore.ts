@@ -17,6 +17,8 @@ interface BranchInfo {
 interface SessionState {
   user: SessionUser | null;
   branch: BranchInfo | null;
+  month: string | null;
+  setMonth: (month: string) => void;
   setUser: (user: SessionUser) => void;
   setBranch: (branch: BranchInfo) => void;
   clearSession: () => void;
@@ -29,6 +31,8 @@ export const useSessionStore = create<SessionState>()(
     (set) => ({
       user: null,
       branch: null,
+      month: null,
+      setMonth: (month) => set({ month }),
       setUser: (user) => set({ user }),
       setBranch: (branch) => set({ branch }),
       clearSession: () => set({ user: null, branch: null }),

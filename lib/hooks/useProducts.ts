@@ -4,7 +4,9 @@ import { fetchProducts, fetchAllProducts } from '@/lib/services/products';
 
 export function useProducts(branchId?: string) {
   return useQuery({
-    queryKey: ['products', branchId || 'all'],
+    // 'admin-products' key for all-product queries (matches admin home dashboard)
+    // ['products', branchId] for branch-specific queries (matches staff pages)
+    queryKey: branchId ? ['products', branchId] : ['admin-products'],
     queryFn: () => branchId ? fetchProducts(branchId) : fetchAllProducts(),
   });
 }

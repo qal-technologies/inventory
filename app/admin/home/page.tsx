@@ -1,9 +1,7 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useSales } from '@/lib/hooks/useSales';
 import { useQuery } from '@tanstack/react-query';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -19,12 +17,15 @@ import {
 import type { Product } from '@/lib/firebase/converters';
 import { fetchAllProducts } from '@/lib/services/products';
 import { useBranches } from '@/lib/hooks/useBranches';
+import { useAppStore } from '@/store/appStore';
+import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
 
 export default function AdminHomePage() {
   const { data: sales, isLoading: salesLoading } = useSales();
-  const [branchFilter, setBranchFilter] = useState('');
-  const [monthFilter, setMonthFilter] = useState('');
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
+
+  // Single source of truth — no local mirror state
+  const { branch, month, setBranch, setMonth } = useAppStore();
 
   // Fetch all products to check stock alerts
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
@@ -32,92 +33,82 @@ export default function AdminHomePage() {
     queryFn: fetchAllProducts,
   });
 
-  // Extract unique branches from sales or products
+  // Fetch branches
   const { data: branches } = useBranches();
+
+  // Branch names for the dropdown (only branches that exist)
   const branchNames = useMemo(() => {
     if (!branches) return [];
-    return branches?.map((b) => b.name).filter(Boolean);
+    return branches.map((b) => b.name).filter(Boolean);
   }, [branches]);
 
-  // Dynamically extract month options (YYYY-MM) from sales records
+  // Dynamically extract month options (YYYY-MM) from ALL sales records (not filtered)
   const monthOptions = useMemo(() => {
     if (!sales) return [];
     const set = new Set<string>();
     sales.forEach((s) => {
-      if (s.createdAt) {
-        set.add(s.createdAt.slice(0, 7));
-      }
+      const ym = getYearMonth(s.createdAt);
+      if (ym) set.add(ym);
     });
-    const sorted = [...set].sort((a, b) => b.localeCompare(a));
-    return sorted.map((ym) => {
-      const [year, month] = ym.split('-');
-      const monthNames = [
-        'January',
-        'February',
-        'March',
-        'April',
-        'May',
-        'June',
-        'July',
-        'August',
-        'September',
-        'October',
-        'November',
-        'December',
-      ];
-      const label = `${monthNames[parseInt(month, 10) - 1]} ${year}`;
-      return { value: ym, label };
-    });
+    return [...set]
+      .sort((a, b) => b.localeCompare(a))
+      .map((ym) => ({ value: ym, label: formatMonthLabel(ym) }));
   }, [sales]);
 
-  // Filter sales and products by branch and month
+  // ── Filtering ─────────────────────────────────────────────────────────────────
   const filteredSales = useMemo(() => {
     if (!sales) return [];
     let res = sales;
-    if (branchFilter) {
-      res = res.filter((s) => s.branchName === branchFilter);
+    if (branch) {
+      res = res.filter((s) => s.branchName === branch);
     }
-    if (monthFilter) {
-      res = res.filter(
-        (s) => s.createdAt && s.createdAt.startsWith(monthFilter),
-      );
+    if (month) {
+      res = res.filter((s) => getYearMonth(s.createdAt) === month);
     }
     return res;
-  }, [sales, branchFilter, monthFilter]);
+  }, [sales, branch, month]);
 
   const filteredProducts = useMemo(() => {
     if (!products) return [];
-    if (!branchFilter) return products;
-    // Map branchName to branchId or simply check
-    return products.filter((p) => p.branchId === branchFilter.toLowerCase());
-  }, [products, branchFilter]);
+    if (!branch) return products;
+    // Resolve branch name → ID for product filtering
+    const branchObj = branches?.find((b) => b.name === branch);
+    if (!branchObj) return products; // branch not found yet, show all
+    return products.filter((p) => p.branchId === branchObj.id);
+  }, [products, branch, branches]);
 
-  // Compute stats
+  // ── Compute stats ─────────────────────────────────────────────────────────────
   const today = new Date().toDateString();
-  const todaySales = filteredSales.filter(
-    (s) => new Date(s.createdAt).toDateString() === today,
-  );
 
-  const todayRevenue = todaySales.reduce((s, x) => s + x.total, 0);
-  const todayProfit = todaySales.reduce((s, x) => s + x.profit, 0);
-  const totalRevenue = filteredSales.reduce((s, x) => s + x.total, 0);
-  const totalProfit = filteredSales.reduce((s, x) => s + x.profit, 0);
-  const totalDiscount = filteredSales.reduce((s, x) => s + x.discount, 0);
+  const todaySales = filteredSales.filter((s) => {
+    const d = toDate(s.createdAt);
+    return d ? d.toDateString() === today : false;
+  });
 
-  // Fast/Best selling product rank
+  const todayRevenue = todaySales.reduce((s, x) => s + (x.total || 0), 0);
+  const todayProfit = todaySales.reduce((s, x) => s + (x.profit || 0), 0);
+  const totalRevenue = filteredSales.reduce((s, x) => s + (x.total || 0), 0);
+  const totalProfit = filteredSales.reduce((s, x) => s + (x.profit || 0), 0);
+  const totalDiscount = filteredSales.reduce((s, x) => s + (x.discount || 0), 0);
+
+  const avgProfitMargin =
+    filteredSales.length > 0
+      ? (
+          filteredSales.reduce((s, x) => s + (x.profitMargin || 0), 0) / filteredSales.length
+        ).toFixed(1)
+      : '0';
+
+  // Best selling products
   const bestSellers = useMemo(() => {
-    const ranks: Record<
-      string,
-      { name: string; qty: number; revenue: number }
-    > = {};
+    const ranks: Record<string, { name: string; qty: number; revenue: number }> = {};
     filteredSales.forEach((sale) => {
       sale.items.forEach((item) => {
         const id = item.productId || item.name;
         if (!ranks[id]) {
           ranks[id] = { name: item.name, qty: 0, revenue: 0 };
         }
-        ranks[id].qty += item.qty;
-        ranks[id].revenue += item.sellingPrice * item.qty;
+        ranks[id].qty += item.qty || 0;
+        ranks[id].revenue += (item.sellingPrice || 0) * (item.qty || 0);
       });
     });
     return Object.values(ranks)
@@ -125,9 +116,8 @@ export default function AdminHomePage() {
       .slice(0, 5);
   }, [filteredSales]);
 
-  // Restock alerts
+  // Restock alerts (uses correctly branch-filtered products)
   const restockAlerts = useMemo(() => {
-    if (!filteredProducts) return [];
     return filteredProducts.filter((p) => p.stock <= (p.reorder || 5));
   }, [filteredProducts]);
 
@@ -160,8 +150,8 @@ export default function AdminHomePage() {
 
   const getBranchName = (id?: string) => {
     if (!id) return 'General';
-    const branch = branches?.find((b) => b.id === id);
-    return branch?.name || id;
+    const b = branches?.find((b) => b.id === id);
+    return b?.name || id;
   };
 
   // Fetch notifications
@@ -196,7 +186,7 @@ export default function AdminHomePage() {
           </p>
         </div>
 
-        {/* Branch Filter dropdown and Bell notification link */}
+        {/* Filters + Bell */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link
             href='/admin/notifications'
@@ -212,10 +202,7 @@ export default function AdminHomePage() {
               justifyContent: 'center',
               cursor: 'pointer',
             }}>
-            <Bell
-              size={20}
-              color='var(--accent-deep)'
-            />
+            <Bell size={20} color='var(--accent-deep)' />
             {unreadCount > 0 && (
               <span
                 style={{
@@ -243,50 +230,34 @@ export default function AdminHomePage() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              overflowX: 'scroll',
+              overflowX: 'auto',
               scrollBehavior: 'smooth',
             }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Filter
-                size={16}
-                color='var(--text-muted)'
-              />
-              <select
-                className='input-base'
-                style={{
-                  width: 'auto',
-                  minWidth: 150,
-                  height: 40,
-                  padding: '0 10px',
-                }}
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}>
-                <option value=''>All Branches</option>
-                {branchNames.map((b) => (
-                  <option
-                    key={b}
-                    value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Filter size={16} color='var(--text-muted)' style={{ flexShrink: 0 }} />
 
+            {/* Branch filter — value is always the exact store value, "" means All */}
             <select
               className='input-base'
-              style={{
-                width: 'auto',
-                minWidth: 140,
-                height: 40,
-                padding: '0 10px',
-              }}
-              value={monthFilter}
-              onChange={(e) => setMonthFilter(e.target.value)}>
+              style={{ width: 'auto', minWidth: 150, height: 40, padding: '0 10px' }}
+              value={branch || ''}
+              onChange={(e) => setBranch(e.target.value || null)}>
+              <option value=''>All Branches</option>
+              {branchNames.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+
+            {/* Month filter — value is always the "YYYY-MM" store value, "" means All */}
+            <select
+              className='input-base'
+              style={{ width: 'auto', minWidth: 160, height: 40, padding: '0 10px' }}
+              value={month || ''}
+              onChange={(e) => setMonth(e.target.value || null)}>
               <option value=''>All Months</option>
               {monthOptions.map((m) => (
-                <option
-                  key={m.value}
-                  value={m.value}>
+                <option key={m.value} value={m.value}>
                   {m.label}
                 </option>
               ))}
@@ -296,9 +267,7 @@ export default function AdminHomePage() {
       </div>
 
       {/* Stats Cards */}
-      <div
-        className='stats-grid'
-        style={{ marginBottom: 24 }}>
+      <div className='stats-grid' style={{ marginBottom: 24 }}>
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
@@ -309,13 +278,8 @@ export default function AdminHomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}>
               <div style={{ gap: 10, alignItems: 'center', display: 'flex' }}>
-                <Icon
-                  size={20}
-                  color={s.color}
-                />
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {s.label}
-                </p>
+                <Icon size={20} color={s.color} />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.label}</p>
               </div>
               <p
                 style={{
@@ -324,90 +288,49 @@ export default function AdminHomePage() {
                   marginTop: 6,
                   color: 'var(--text-primary)',
                 }}>
-                {isLoading ?
-                  <span
-                    className='skeleton'
-                    style={{ width: 80, height: 25, display: 'inline-block' }}
-                  />
-                : s.value}
+                {isLoading ? (
+                  <span className='skeleton' style={{ width: 80, height: 25, display: 'inline-block' }} />
+                ) : (
+                  s.value
+                )}
               </p>
             </motion.div>
           );
         })}
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr',
-          gap: 20,
-          marginBottom: 40,
-        }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20, marginBottom: 40 }}>
         {/* Row 1: Best Sellers & Stock Alerts */}
-        <div
-          style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}
-          className='form-grid-2'>
-          {/* Best Sellers Rankings */}
-          <div
-            className='glass'
-            style={{ padding: 20 }}>
-            <h3
-              style={{
-                marginBottom: 16,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}>
-              <Award
-                size={18}
-                color='var(--warning)'
-              />{' '}
-              Best Selling Products
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }} className='form-grid-2'>
+          {/* Best Sellers */}
+          <div className='glass' style={{ padding: 20 }}>
+            <h3 style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Award size={18} color='var(--warning)' /> Best Selling Products
             </h3>
-            {isLoading ?
-              <div
-                className='skeleton'
-                style={{ height: 180 }}
-              />
-            : bestSellers.length === 0 ?
-              <p
-                style={{
-                  color: 'var(--text-muted)',
-                  textAlign: 'center',
-                  padding: 40,
-                }}>
+            {isLoading ? (
+              <div className='skeleton' style={{ height: 180 }} />
+            ) : bestSellers.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 40 }}>
                 No data yet
               </p>
-            : <div
-                style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {bestSellers.map((item, index) => (
                   <div
                     key={item.name}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyItems: 'center',
                       justifyContent: 'space-between',
                     }}>
-                    <div
-                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span
-                        style={{
-                          fontWeight: 800,
-                          color: 'var(--accent-deep)',
-                          width: 20,
-                        }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 800, color: 'var(--accent-deep)', width: 20 }}>
                         #{index + 1}
                       </span>
-                      <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                        {item.name}
-                      </span>
+                      <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{item.name}</span>
                     </div>
-                    <div
-                      style={{ display: 'flex', gap: 16, fontSize: '0.85rem' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>
-                        {item.qty} sold
-                      </span>
+                    <div style={{ display: 'flex', gap: 16, fontSize: '0.85rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{item.qty} sold</span>
                       <span style={{ fontWeight: 700 }}>
                         {currency}
                         {item.revenue.toLocaleString()}
@@ -416,14 +339,12 @@ export default function AdminHomePage() {
                   </div>
                 ))}
               </div>
-            }
+            )}
           </div>
 
           {/* Low Stock Alerts */}
           {restockAlerts.length > 0 && (
-            <div
-              className='glass'
-              style={{ padding: 20 }}>
+            <div className='glass' style={{ padding: 20 }}>
               <h3
                 style={{
                   marginBottom: 16,
@@ -432,18 +353,12 @@ export default function AdminHomePage() {
                   gap: 8,
                   color: 'var(--danger)',
                 }}>
-                <AlertTriangle
-                  size={18}
-                  color='var(--danger)'
-                />{' '}
-                Low Stock Alerts
+                <AlertTriangle size={18} color='var(--danger)' /> Low Stock Alerts
               </h3>
-              {isLoading ?
+              {isLoading ? (
+                <div className='skeleton' style={{ height: 180 }} />
+              ) : (
                 <div
-                  className='skeleton'
-                  style={{ height: 180 }}
-                />
-              : <div
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -462,71 +377,41 @@ export default function AdminHomePage() {
                         borderBottom: '1px solid var(--border)',
                       }}>
                       <div>
-                        <p style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                          {p.name}
-                        </p>
-                        <p
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-muted)',
-                          }}>
+                        <p style={{ fontWeight: 600, fontSize: '0.85rem' }}>{p.name}</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                           Branch: {getBranchName(p.branchId)}
                         </p>
                       </div>
-                      <span
-                        className={`badge ${p.stock === 0 ? 'badge-danger' : 'badge-warning'}`}>
+                      <span className={`badge ${p.stock === 0 ? 'badge-danger' : 'badge-warning'}`}>
                         {p.stock} left (reorder at {p.reorder || 5})
                       </span>
                     </div>
                   ))}
                 </div>
-              }
+              )}
             </div>
           )}
         </div>
 
         {/* Row 2: Recent Sales & Business Summary */}
-        <div
-          style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}
-          className='form-grid-2'>
-          {/* Recent sales */}
-          <div
-            className='glass'
-            style={{ padding: 20 }}>
-            <h3
-              style={{
-                marginBottom: 16,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}>
-              <ShoppingBag
-                size={18}
-                color='var(--accent-deep)'
-              />{' '}
-              Recent Sales
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }} className='form-grid-2'>
+          {/* Recent Sales */}
+          <div className='glass' style={{ padding: 20 }}>
+            <h3 style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ShoppingBag size={18} color='var(--accent-deep)' /> Recent Sales
             </h3>
-            {isLoading ?
-              <div
-                style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {isLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className='skeleton'
-                    style={{ height: 48 }}
-                  />
+                  <div key={i} className='skeleton' style={{ height: 48 }} />
                 ))}
               </div>
-            : recentSales.length === 0 ?
-              <p
-                style={{
-                  color: 'var(--text-muted)',
-                  textAlign: 'center',
-                  padding: 24,
-                }}>
-                No sales yet
+            ) : recentSales.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 24 }}>
+                No sales{branch || month ? ' for the selected filter' : ' yet'}
               </p>
-            : <div style={{ display: 'flex', flexDirection: 'column' }}>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {recentSales.map((sale, i) => (
                   <motion.div
                     key={sale.id}
@@ -538,65 +423,36 @@ export default function AdminHomePage() {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '12px 0',
-                      borderBottom:
-                        i < recentSales.length - 1 ?
-                          '1px solid var(--border)'
-                        : 'none',
+                      borderBottom: i < recentSales.length - 1 ? '1px solid var(--border)' : 'none',
                     }}>
                     <div>
                       <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>
                         {sale.items.map((it) => it.name).join(', ')}
                       </p>
-                      <p
-                        style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--text-muted)',
-                        }}>
-                        {sale.branchName} ·{' '}
-                        {sale.items.reduce((sum, it) => sum + it.qty, 0)}{' '}
-                        item(s)
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {sale.branchName} · {sale.items.reduce((sum, it) => sum + it.qty, 0)} item(s)
                       </p>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <p
-                        style={{
-                          fontWeight: 700,
-                          color: 'var(--accent-deep)',
-                        }}>
+                      <p style={{ fontWeight: 700, color: 'var(--accent-deep)' }}>
                         {currency}
-                        {sale.total.toLocaleString()}
+                        {(sale.total || 0).toLocaleString()}
                       </p>
-                      <p
-                        style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--success)',
-                        }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--success)' }}>
                         +{currency}
-                        {sale.profit.toLocaleString()}
+                        {(sale.profit || 0).toLocaleString()}
                       </p>
                     </div>
                   </motion.div>
                 ))}
               </div>
-            }
+            )}
           </div>
 
-          {/* Quick stats / Business Summary */}
-          <div
-            className='glass'
-            style={{ padding: 20 }}>
-            <h3
-              style={{
-                marginBottom: 16,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}>
-              <Package
-                size={18}
-                color='var(--accent-deep)'
-              />{' '}
-              Business Summary
+          {/* Business Summary */}
+          <div className='glass' style={{ padding: 20 }}>
+            <h3 style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Package size={18} color='var(--accent-deep)' /> Business Summary
             </h3>
             <div className='summary-row'>
               <span style={{ color: 'var(--text-muted)' }}>Total Revenue</span>
@@ -613,27 +469,15 @@ export default function AdminHomePage() {
               </span>
             </div>
             <div className='summary-row'>
-              <span style={{ color: 'var(--text-muted)' }}>
-                Total Discount Given
-              </span>
+              <span style={{ color: 'var(--text-muted)' }}>Total Discount Given</span>
               <span style={{ fontWeight: 700, color: 'var(--danger)' }}>
                 {currency}
                 {totalDiscount.toLocaleString()}
               </span>
             </div>
             <div className='summary-row'>
-              <span style={{ color: 'var(--text-muted)' }}>
-                Avg Profit Margin
-              </span>
-              <span style={{ fontWeight: 700 }}>
-                {filteredSales.length ?
-                  (
-                    filteredSales.reduce((s, x) => s + x.profitMargin, 0) /
-                    filteredSales.length
-                  ).toFixed(1)
-                : 0}
-                %
-              </span>
+              <span style={{ color: 'var(--text-muted)' }}>Avg Profit Margin</span>
+              <span style={{ fontWeight: 700 }}>{avgProfitMargin}%</span>
             </div>
           </div>
         </div>
