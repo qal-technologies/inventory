@@ -65,7 +65,6 @@ export default function AdminHistoryPage() {
           <Receipt size={24} color='var(--accent-deep)' /> Sales History
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Filter size={16} color='var(--text-muted)' />
 
           {/* Branch filter */}
           <select

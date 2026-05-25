@@ -115,8 +115,8 @@ export default function AdminInventoryPage() {
               <div
                 className="glass"
                 style={{
-                  padding: 16,
-                  border: '1px solid var(--danger)',
+                  padding: 12,
+                  border: '0.5px solid var(--danger)',
                   background: 'rgba(239, 68, 68, 0.05)',
                   marginBottom: 16,
                   borderRadius: 'var(--radius-lg)'
@@ -160,7 +160,6 @@ export default function AdminInventoryPage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Filter size={16} color="var(--text-muted)" />
                 <select
                   className="input-base"
                   style={{ width: 'auto', minWidth: 170, height: 40, padding: '0 10px' }}
@@ -445,7 +444,7 @@ function AddProductForm({ onSuccess }: { onSuccess: () => void }) {
       <form
         onSubmit={handleSubmit}
         className='glass'
-        style={{ padding: 24, maxWidth: 600, marginBottom: 60 }}>
+        style={{ padding: 20, maxWidth: 600, marginBottom: 60 }}>
         <h3 style={{ marginBottom: 20 }}>Add New Product</h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -530,7 +529,7 @@ function AddProductForm({ onSuccess }: { onSuccess: () => void }) {
                 className='input-base'
                 value={form.sellingPrice}
                 onChange={(e) =>
-                  setForm({ ...form, sellingPrice: e.target.value })
+                  setForm({ ...form, sellingPrice: e.target.value})
                 }
                 placeholder='0.00'
                 min='0'
@@ -571,6 +570,7 @@ function AddProductForm({ onSuccess }: { onSuccess: () => void }) {
               <label className='form-label'>Restock Point</label>
               <input
                 className='input-base'
+                type='number'
                 value={form.reorder}
                 onChange={(e) => setForm({ ...form, reorder: e.target.value })}
                 placeholder='0'

@@ -89,18 +89,25 @@ export default function AdminHomePage() {
   const todayProfit = todaySales.reduce((s, x) => s + (x.profit || 0), 0);
   const totalRevenue = filteredSales.reduce((s, x) => s + (x.total || 0), 0);
   const totalProfit = filteredSales.reduce((s, x) => s + (x.profit || 0), 0);
-  const totalDiscount = filteredSales.reduce((s, x) => s + (x.discount || 0), 0);
+  const totalDiscount = filteredSales.reduce(
+    (s, x) => s + (x.discount || 0),
+    0,
+  );
 
   const avgProfitMargin =
-    filteredSales.length > 0
-      ? (
-          filteredSales.reduce((s, x) => s + (x.profitMargin || 0), 0) / filteredSales.length
-        ).toFixed(1)
-      : '0';
+    filteredSales.length > 0 ?
+      (
+        filteredSales.reduce((s, x) => s + (x.profitMargin || 0), 0) /
+        filteredSales.length
+      ).toFixed(1)
+    : '0';
 
   // Best selling products
   const bestSellers = useMemo(() => {
-    const ranks: Record<string, { name: string; qty: number; revenue: number }> = {};
+    const ranks: Record<
+      string,
+      { name: string; qty: number; revenue: number }
+    > = {};
     filteredSales.forEach((sale) => {
       sale.items.forEach((item) => {
         const id = item.productId || item.name;
@@ -202,7 +209,10 @@ export default function AdminHomePage() {
               justifyContent: 'center',
               cursor: 'pointer',
             }}>
-            <Bell size={20} color='var(--accent-deep)' />
+            <Bell
+              size={20}
+              color='var(--accent-deep)'
+            />
             {unreadCount > 0 && (
               <span
                 style={{
@@ -233,17 +243,22 @@ export default function AdminHomePage() {
               overflowX: 'auto',
               scrollBehavior: 'smooth',
             }}>
-            <Filter size={16} color='var(--text-muted)' style={{ flexShrink: 0 }} />
-
             {/* Branch filter — value is always the exact store value, "" means All */}
             <select
               className='input-base'
-              style={{ width: 'auto', minWidth: 150, height: 40, padding: '0 10px' }}
+              style={{
+                width: 'auto',
+                minWidth: 150,
+                height: 40,
+                padding: '0 10px',
+              }}
               value={branch || ''}
               onChange={(e) => setBranch(e.target.value || null)}>
               <option value=''>All Branches</option>
               {branchNames.map((b) => (
-                <option key={b} value={b}>
+                <option
+                  key={b}
+                  value={b}>
                   {b}
                 </option>
               ))}
@@ -252,12 +267,19 @@ export default function AdminHomePage() {
             {/* Month filter — value is always the "YYYY-MM" store value, "" means All */}
             <select
               className='input-base'
-              style={{ width: 'auto', minWidth: 160, height: 40, padding: '0 10px' }}
+              style={{
+                width: 'auto',
+                minWidth: 160,
+                height: 40,
+                padding: '0 10px',
+              }}
               value={month || ''}
               onChange={(e) => setMonth(e.target.value || null)}>
               <option value=''>All Months</option>
               {monthOptions.map((m) => (
-                <option key={m.value} value={m.value}>
+                <option
+                  key={m.value}
+                  value={m.value}>
                   {m.label}
                 </option>
               ))}
@@ -267,7 +289,13 @@ export default function AdminHomePage() {
       </div>
 
       {/* Stats Cards */}
-      <div className='stats-grid' style={{ marginBottom: 24 }}>
+      <div
+        className='stats-grid'
+        style={{
+          marginBottom: 24,
+          overflowX: 'auto',
+          scrollBehavior: 'smooth',
+        }}>
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
@@ -278,8 +306,13 @@ export default function AdminHomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}>
               <div style={{ gap: 10, alignItems: 'center', display: 'flex' }}>
-                <Icon size={20} color={s.color} />
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.label}</p>
+                <Icon
+                  size={20}
+                  color={s.color}
+                />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {s.label}
+                </p>
               </div>
               <p
                 style={{
@@ -288,63 +321,107 @@ export default function AdminHomePage() {
                   marginTop: 6,
                   color: 'var(--text-primary)',
                 }}>
-                {isLoading ? (
-                  <span className='skeleton' style={{ width: 80, height: 25, display: 'inline-block' }} />
-                ) : (
-                  s.value
-                )}
+                {isLoading ?
+                  <span
+                    className='skeleton'
+                    style={{ width: 80, height: 25, display: 'inline-block' }}
+                  />
+                : s.value}
               </p>
             </motion.div>
           );
         })}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20, marginBottom: 40 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gap: 20,
+          marginBottom: 40,
+        }}>
         {/* Row 1: Best Sellers & Stock Alerts */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }} className='form-grid-2'>
+        <div
+          style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}
+          className='form-grid-2'>
           {/* Best Sellers */}
-          <div className='glass' style={{ padding: 20 }}>
-            <h3 style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Award size={18} color='var(--warning)' /> Best Selling Products
-            </h3>
-            {isLoading ? (
-              <div className='skeleton' style={{ height: 180 }} />
-            ) : bestSellers.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 40 }}>
-                No data yet
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {bestSellers.map((item, index) => (
-                  <div
-                    key={item.name}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontWeight: 800, color: 'var(--accent-deep)', width: 20 }}>
-                        #{index + 1}
-                      </span>
-                      <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{item.name}</span>
+
+          {!isLoading && bestSellers.length > 0 && (
+            <div
+              className='glass'
+              style={{ padding: 20 }}>
+              <h3
+                style={{
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}>
+                <Award
+                  size={18}
+                  color='var(--warning)'
+                />{' '}
+                Best Selling Products
+              </h3>
+              {isLoading ?
+                <div
+                  className='skeleton'
+                  style={{ height: 180 }}
+                />
+              : <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {bestSellers.map((item, index) => (
+                    <div
+                      key={item.name}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}>
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            color: 'var(--accent-deep)',
+                            width: 20,
+                          }}>
+                          #{index + 1}
+                        </span>
+                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                          {item.name}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 16,
+                          fontSize: '0.85rem',
+                        }}>
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          {item.qty} sold
+                        </span>
+                        <span style={{ fontWeight: 700 }}>
+                          {currency}
+                          {item.revenue.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 16, fontSize: '0.85rem' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>{item.qty} sold</span>
-                      <span style={{ fontWeight: 700 }}>
-                        {currency}
-                        {item.revenue.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              }
+            </div>
+          )}
 
           {/* Low Stock Alerts */}
           {restockAlerts.length > 0 && (
-            <div className='glass' style={{ padding: 20 }}>
+            <div
+              className='glass'
+              style={{ padding: 10 }}>
               <h3
                 style={{
                   marginBottom: 16,
@@ -353,12 +430,18 @@ export default function AdminHomePage() {
                   gap: 8,
                   color: 'var(--danger)',
                 }}>
-                <AlertTriangle size={18} color='var(--danger)' /> Low Stock Alerts
+                <AlertTriangle
+                  size={18}
+                  color='var(--danger)'
+                />{' '}
+                Low Stock Alerts
               </h3>
-              {isLoading ? (
-                <div className='skeleton' style={{ height: 180 }} />
-              ) : (
+              {isLoading ?
                 <div
+                  className='skeleton'
+                  style={{ height: 180 }}
+                />
+              : <div
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -377,82 +460,134 @@ export default function AdminHomePage() {
                         borderBottom: '1px solid var(--border)',
                       }}>
                       <div>
-                        <p style={{ fontWeight: 600, fontSize: '0.85rem' }}>{p.name}</p>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <p style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                          {p.name}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--text-muted)',
+                          }}>
                           Branch: {getBranchName(p.branchId)}
                         </p>
                       </div>
-                      <span className={`badge ${p.stock === 0 ? 'badge-danger' : 'badge-warning'}`}>
+                      <span
+                        className={`badge ${p.stock === 0 ? 'badge-danger' : 'badge-warning'}`}>
                         {p.stock} left (reorder at {p.reorder || 5})
                       </span>
                     </div>
                   ))}
                 </div>
-              )}
+              }
             </div>
           )}
         </div>
 
         {/* Row 2: Recent Sales & Business Summary */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }} className='form-grid-2'>
+        <div
+          style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}
+          className='form-grid-2'>
           {/* Recent Sales */}
-          <div className='glass' style={{ padding: 20 }}>
-            <h3 style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ShoppingBag size={18} color='var(--accent-deep)' /> Recent Sales
-            </h3>
-            {isLoading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className='skeleton' style={{ height: 48 }} />
-                ))}
-              </div>
-            ) : recentSales.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 24 }}>
-                No sales{branch || month ? ' for the selected filter' : ' yet'}
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {recentSales.map((sale, i) => (
-                  <motion.div
-                    key={sale.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '12px 0',
-                      borderBottom: i < recentSales.length - 1 ? '1px solid var(--border)' : 'none',
-                    }}>
-                    <div>
-                      <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                        {sale.items.map((it) => it.name).join(', ')}
-                      </p>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {sale.branchName} · {sale.items.reduce((sum, it) => sum + it.qty, 0)} item(s)
-                      </p>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <p style={{ fontWeight: 700, color: 'var(--accent-deep)' }}>
-                        {currency}
-                        {(sale.total || 0).toLocaleString()}
-                      </p>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--success)' }}>
-                        +{currency}
-                        {(sale.profit || 0).toLocaleString()}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </div>
+          {!isLoading && recentSales.length > 0 && (
+            <div
+              className='glass'
+              style={{ padding: 20 }}>
+              <h3
+                style={{
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}>
+                <ShoppingBag
+                  size={18}
+                  color='var(--accent-deep)'
+                />{' '}
+                Recent Sales
+              </h3>
+              {isLoading ?
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className='skeleton'
+                      style={{ height: 48 }}
+                    />
+                  ))}
+                </div>
+              : <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {recentSales.map((sale, i) => (
+                    <motion.div
+                      key={sale.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '12px 0',
+                        borderBottom:
+                          i < recentSales.length - 1 ?
+                            '1px solid var(--border)'
+                          : 'none',
+                      }}>
+                      <div>
+                        <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                          {sale.items.map((it) => it.name).join(', ')}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--text-muted)',
+                          }}>
+                          {sale.branchName} ·{' '}
+                          {sale.items.reduce((sum, it) => sum + it.qty, 0)}{' '}
+                          item(s)
+                        </p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <p
+                          style={{
+                            fontWeight: 700,
+                            color: 'var(--accent-deep)',
+                          }}>
+                          {currency}
+                          {(sale.total || 0).toLocaleString()}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--success)',
+                          }}>
+                          +{currency}
+                          {(sale.profit || 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              }
+            </div>
+          )}
 
           {/* Business Summary */}
-          <div className='glass' style={{ padding: 20 }}>
-            <h3 style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Package size={18} color='var(--accent-deep)' /> Business Summary
+          <div
+            className='glass'
+            style={{ padding: 20 }}>
+            <h3
+              style={{
+                marginBottom: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+              <Package
+                size={18}
+                color='var(--accent-deep)'
+              />{' '}
+              Business Summary
             </h3>
             <div className='summary-row'>
               <span style={{ color: 'var(--text-muted)' }}>Total Revenue</span>
@@ -469,14 +604,18 @@ export default function AdminHomePage() {
               </span>
             </div>
             <div className='summary-row'>
-              <span style={{ color: 'var(--text-muted)' }}>Total Discount Given</span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                Total Discount Given
+              </span>
               <span style={{ fontWeight: 700, color: 'var(--danger)' }}>
                 {currency}
                 {totalDiscount.toLocaleString()}
               </span>
             </div>
             <div className='summary-row'>
-              <span style={{ color: 'var(--text-muted)' }}>Avg Profit Margin</span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                Avg Profit Margin
+              </span>
               <span style={{ fontWeight: 700 }}>{avgProfitMargin}%</span>
             </div>
           </div>

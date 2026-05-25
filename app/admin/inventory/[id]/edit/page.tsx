@@ -142,7 +142,7 @@ export default function EditProductPage() {
         <ArrowLeft size={16} /> Back to Inventory
       </button>
 
-      <form onSubmit={handleSubmit} className="glass" style={{ padding: 24, maxWidth: 600, marginBottom: 60 }}>
+      <form onSubmit={handleSubmit} className="glass" style={{ padding: 20, maxWidth: 600, marginBottom: 60 }}>
         <h3 style={{ marginBottom: 20 }}>Edit Product Details</h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -195,7 +195,7 @@ export default function EditProductPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Restock Point</label>
-              <input className="input-base" value={form.reorder} onChange={(e) => setForm({ ...form, reorder: e.target.value })} placeholder="0" />
+              <input className="input-base" type='number' value={form.reorder} onChange={(e) => setForm({ ...form, reorder: e.target.value })} placeholder="0" />
             </div>
           </div>
 

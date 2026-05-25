@@ -1,7 +1,15 @@
 'use client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, AlertTriangle, CheckCircle, Info, Trash2, CheckSquare } from 'lucide-react';
+import {
+  Bell,
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  Trash2,
+  CheckSquare,
+  Trash,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -55,6 +63,20 @@ export default function AdminNotificationsPage() {
     },
   });
 
+  const deleteNotif = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch('api/notifications', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error('Failed to delete notification');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+    },
+  });
+
   const handleMarkAllRead = async () => {
     if (!notifications) return;
     const unread = notifications.filter((n) => !n.read);
@@ -67,49 +89,94 @@ export default function AdminNotificationsPage() {
     }
   };
 
+  const handleDeleteNotif = async (id: string) => {
+    if (!notifications || !id) return;
+    try {
+      await deleteNotif.mutateAsync(id);
+      toast.success('Notification deleted');
+    } catch {
+      toast.error('Failed to delete Notification');
+    }
+  };
+
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 60 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 20,
+          flexWrap: 'wrap',
+          gap: 12,
+        }}>
         <h1 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Bell size={24} color="var(--accent-deep)" />
+          <Bell
+            size={24}
+            color='var(--accent-deep)'
+          />
           Notifications
-          {unreadCount > 0 && <span className="tab-badge" style={{ position: 'static', margin: 0 }}>{unreadCount}</span>}
+          {unreadCount > 0 && (
+            <span
+              className='tab-badge'
+              style={{ position: 'static', margin: 0 }}>
+              {unreadCount}
+            </span>
+          )}
         </h1>
 
         {unreadCount > 0 && (
           <button
             onClick={handleMarkAllRead}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-          >
+            className='btn btn-secondary btn-sm'
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <CheckSquare size={16} /> Mark all as read
           </button>
         )}
       </div>
 
-      <div className="glass" style={{ padding: '8px 20px', minHeight: 180 }}>
-        {isLoading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '20px 0' }}>
+      <div
+        className='glass'
+        style={{ padding: '8px 20px', minHeight: 180 }}>
+        {isLoading ?
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              padding: '20px 0',
+            }}>
             {[1, 2, 3].map((i) => (
-              <div key={i} className="skeleton" style={{ height: 60 }} />
+              <div
+                key={i}
+                className='skeleton'
+                style={{ height: 60 }}
+              />
             ))}
           </div>
-        ) : !notifications || notifications.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-            <Bell size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
+        : !notifications || notifications.length === 0 ?
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '60px 0',
+              color: 'var(--text-muted)',
+            }}>
+            <Bell
+              size={48}
+              style={{ opacity: 0.3, marginBottom: 12 }}
+            />
             <p>No notifications yet</p>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+        : <div style={{ display: 'flex', flexDirection: 'column' }}>
             <AnimatePresence>
               {notifications.map((n, i) => {
                 const Icon = icons[n.type] || Info;
                 return (
                   <motion.div
                     key={n.id}
-                    className="notif-item"
+                    className='notif-item'
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: n.read ? 0.7 : 1, y: 0 }}
                     exit={{ opacity: 0, x: -50 }}
@@ -117,51 +184,78 @@ export default function AdminNotificationsPage() {
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
-                      padding: '16px 0',
-                      borderBottom: i < notifications.length - 1 ? '1px solid var(--border)' : 'none',
+                      padding: '14px 0',
+                      borderBottom:
+                        i < notifications.length - 1 ?
+                          '1px solid var(--border)'
+                        : 'none',
                       cursor: !n.read ? 'pointer' : 'default',
                     }}
                     onClick={() => {
                       if (!n.read) {
                         markReadMut.mutate(n.id);
                       }
-                    }}
-                  >
+                    }}>
                     <div
-                      className="notif-dot"
+                      className='notif-dot'
                       style={{
                         background: dotColors[n.type] || 'var(--info)',
                         marginTop: 6,
                         opacity: n.read ? 0.3 : 1,
                       }}
                     />
-                    <div style={{ flex: 1, paddingLeft: 12 }}>
+                    <div style={{ flex: 1, paddingLeft: 10 }}>
                       <p
                         style={{
                           fontWeight: n.read ? 500 : 700,
                           fontSize: '0.9rem',
-                          color: n.read ? 'var(--text-secondary)' : 'var(--text-primary)',
+                          color:
+                            n.read ?
+                              'var(--text-secondary)'
+                            : 'var(--text-primary)',
                           display: 'flex',
                           alignItems: 'center',
                           gap: 6,
-                        }}
-                      >
-                        <Icon size={14} color={dotColors[n.type]} />
+                        }}>
+                        <Icon
+                          size={14}
+                          color={dotColors[n.type]}
+                        />
                         {n.title}
                       </p>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                      <p
+                        style={{
+                          fontSize: '0.85rem',
+                          color: 'var(--text-muted)',
+                          marginTop: 4,
+                        }}>
                         {n.message}
                       </p>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginTop: 6 }}>
+                      <p
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-light)',
+                          marginTop: 6,
+                        }}>
                         {format(new Date(n.createdAt), 'MMM d, h:mm a')}
                       </p>
                     </div>
+
+                    {/* <div
+                      style={{
+                        display: 'flex',
+                        placeItems: 'center',
+                        marginLeft:5,
+                      }}
+                    onClick={()=> deleteNotif.mutate(n.id)}>
+                      <Trash color='red' size={18}/>
+                    </div> */}
                   </motion.div>
                 );
               })}
             </AnimatePresence>
           </div>
-        )}
+        }
       </div>
     </div>
   );

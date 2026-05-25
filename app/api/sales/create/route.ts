@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
       tx.set(saleNotifRef, {
         type: 'success',
         title: 'Sale Completed',
-        message: `Sale processed successfully at branch ${branchName || branchId}`,
+        message: `Sale processed successfully at ${branchName || branchId} branch.`,
         branchId,
         read: false,
         createdAt: new Date().toISOString(),

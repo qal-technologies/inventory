@@ -47,3 +47,23 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to mark notification as read' }, { status: 500 });
   }
 }
+
+
+export async function DELETE(req: NextRequest) {
+  const session = await getSession();
+  if (!session || session.role !== 'admin')
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { id } = await req.json();
+
+  // Fetch the notification
+  const doc = await adminDb.collection('notifications').doc(id).get();
+  if (!doc.exists) {
+    return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+  }
+
+  // Delete from Firestore
+  await adminDb.collection('notifications').doc(id).delete();
+
+  return NextResponse.json({ ok: true });
+}

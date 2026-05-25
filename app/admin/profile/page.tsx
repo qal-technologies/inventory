@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/store/sessionStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { collection, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase/client';
 import { signOut } from 'firebase/auth';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,7 +39,8 @@ export default function AdminProfilePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, clearSession } = useSessionStore();
-  const { branch: selectedBranch, setBranch: setSelectedBranch } = useAppStore();
+  const { branch: selectedBranch, setBranch: setSelectedBranch } =
+    useAppStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'branches'>('profile');
 
   // Branch CRUD State
@@ -85,7 +85,7 @@ export default function AdminProfilePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['branches'] });
-      toast.success('Branch created successfully! 🏢');
+      toast.success('Branch created successfully!');
       setShowAddForm(false);
       setBranchForm({
         name: '',
@@ -113,7 +113,12 @@ export default function AdminProfilePage() {
     onSuccess: (data) => {
       // If branch was renamed and our filter was pointing at the old name, update it
       const { oldName, newName } = data || {};
-      if (oldName && newName && oldName !== newName && selectedBranch === oldName) {
+      if (
+        oldName &&
+        newName &&
+        oldName !== newName &&
+        selectedBranch === oldName
+      ) {
         setSelectedBranch(newName);
       }
       queryClient.invalidateQueries({ queryKey: ['branches'] });
@@ -149,7 +154,7 @@ export default function AdminProfilePage() {
       const productCount = data?.deletedProducts ?? 0;
       const salesCount = data?.deletedSales ?? 0;
       toast.success(
-        `Branch deleted along with ${productCount} product(s) and ${salesCount} sale record(s)`
+        `Branch deleted along with ${productCount} product(s) and ${salesCount} sale record(s)`,
       );
     },
     onError: (err) => toastError(err),
@@ -184,12 +189,18 @@ export default function AdminProfilePage() {
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', paddingBottom: 80 }}>
+    <div style={{maxWidth: 800, margin: '0 auto', paddingBottom: 80}}>
       {/* Header bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 24,
+        }}>
         <h1>Settings & Profile</h1>
         <Link
-          href="/admin/notifications"
+          href='/admin/notifications'
           style={{
             position: 'relative',
             width: 40,
@@ -201,9 +212,11 @@ export default function AdminProfilePage() {
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-          }}
-        >
-          <Bell size={20} color="var(--accent-deep)" />
+          }}>
+          <Bell
+            size={20}
+            color='var(--accent-deep)'
+          />
           {unreadCount > 0 && (
             <span
               style={{
@@ -220,8 +233,7 @@ export default function AdminProfilePage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-              }}
-            >
+              }}>
               {unreadCount}
             </span>
           )}
@@ -229,90 +241,115 @@ export default function AdminProfilePage() {
       </div>
 
       {/* Tabs list */}
-      <div className="tabs" style={{ marginBottom: 24, width:'max-content' }}>
+      <div
+        className='tabs'
+        style={{ marginBottom: 24, width: 'max-content' }}>
         <button
           className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
-          onClick={() => setActiveTab('profile')}
-        >
+          onClick={() => setActiveTab('profile')}>
           My Profile
         </button>
         <button
           className={`tab-btn ${activeTab === 'branches' ? 'active' : ''}`}
-          onClick={() => setActiveTab('branches')}
-        >
+          onClick={() => setActiveTab('branches')}>
           Branches
         </button>
       </div>
 
-      <AnimatePresence mode="wait">
-        {activeTab === 'profile' ? (
+      <AnimatePresence mode='wait'>
+        {activeTab === 'profile' ?
           <motion.div
-            key="profile-tab"
+            key='profile-tab'
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="glass"
-            style={{ padding: 24, maxWidth: 480 }}
-          >
+            className='glass'
+            style={{ padding: 24, maxWidth: 480 }}>
             {/* User Info card */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                marginBottom: 24,
+              }}>
               <div
                 style={{
                   width: 64,
                   height: 64,
                   borderRadius: 'var(--radius-full)',
-                  background: 'linear-gradient(135deg, var(--pink-300), var(--pink-500))',
+                  background:
+                    'linear-gradient(135deg, var(--pink-300), var(--pink-500))',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   boxShadow: 'var(--shadow-pink)',
-                }}
-              >
-                <User size={28} color="#fff" />
+                }}>
+                <User
+                  size={28}
+                  color='#fff'
+                />
               </div>
               <div>
-                <p style={{ fontWeight: 700, fontSize: '1.125rem' }}>{user?.name || 'Admin User'}</p>
-                <span className="badge badge-pink">
+                <p style={{ fontWeight: 700, fontSize: '1.125rem' }}>
+                  {user?.name || 'Admin User'}
+                </p>
+                <span className='badge badge-pink'>
                   <Shield size={12} /> {user?.role || 'admin'}
                 </span>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div className="form-group">
-                <label className="form-label">
-                  <Mail size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+              <div className='form-group'>
+                <label className='form-label'>
+                  <Mail
+                    size={14}
+                    style={{
+                      display: 'inline',
+                      verticalAlign: 'middle',
+                      marginRight: 4,
+                    }}
+                  />
                   Email Address
                 </label>
-                <input className="input-base" value={user?.email || ''} disabled />
+                <input
+                  className='input-base'
+                  value={user?.email || ''}
+                  disabled
+                />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Name</label>
-                <input className="input-base" value={user?.name || ''} disabled />
+              <div className='form-group'>
+                <label className='form-label'>Name</label>
+                <input
+                  className='input-base'
+                  value={user?.name || ''}
+                  disabled
+                />
               </div>
             </div>
 
             <motion.button
-              className="btn btn-danger"
-              style={{ width: '100%', marginTop: 32 }}
+              className='btn btn-danger'
+              style={{ width: '100%', maxWidth:300, justifySelf:'center', display:'flex', marginTop: 32 }}
               onClick={handleLogout}
-              whileTap={{ scale: 0.97 }}
-            >
+              whileTap={{ scale: 0.97 }}>
               <LogOut size={18} /> Sign Out
             </motion.button>
           </motion.div>
-        ) : (
-          <motion.div
-            key="branches-tab"
+        : <motion.div
+            key='branches-tab'
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
-          >
+            style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Create Branch Trigger */}
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
+              <button
+                className='btn btn-primary'
+                style={{padding:10, paddingInline:15}}
+                onClick={() => setShowAddForm(!showAddForm)}>
                 <Plus size={16} /> Add Branch
               </button>
             </div>
@@ -321,74 +358,120 @@ export default function AdminProfilePage() {
             {showAddForm && (
               <motion.form
                 onSubmit={handleCreateBranch}
-                className="glass"
-                style={{ padding: 20 }}
+                className='glass'
+                style={{ padding: 20, borderRadius:20 }}
                 initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-              >
+                animate={{ height: 'auto', opacity: 1 }}>
                 <h3 style={{ marginBottom: 16 }}>Add New Branch</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }} className="form-grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Branch Name *</label>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 10,
+                    marginBottom: 15,
+                  }}
+                  className='form-grid-2'>
+                  <div className='form-group'>
+                    <label className='form-label'>Branch Name *</label>
                     <input
-                      className="input-base"
-                      placeholder="e.g. Lagos City"
+                      className='input-base'
+                      placeholder='e.g. Lagos City'
                       value={branchForm.name}
-                      onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })}
+                      onChange={(e) =>
+                        setBranchForm({ ...branchForm, name: e.target.value })
+                      }
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Address</label>
+                  <div className='form-group'>
+                    <label className='form-label'>Address</label>
                     <input
-                      className="input-base"
-                      placeholder="Branch location address"
+                      className='input-base'
+                      placeholder='Branch address'
                       value={branchForm.address}
-                      onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
+                      onChange={(e) =>
+                        setBranchForm({
+                          ...branchForm,
+                          address: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-                  <div className="form-group">
-                    <label className="form-label">Bank Name</label>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr 1fr',
+                    gap: 10,
+                    marginBottom: 12,
+                  }}>
+                  <div className='form-group'>
+                    <label className='form-label'>Bank Name</label>
                     <input
-                      className="input-base"
-                      placeholder="e.g. GTBank"
+                      className='input-base'
+                      placeholder='e.g. Opay'
                       value={branchForm.paymentBank}
-                      onChange={(e) => setBranchForm({ ...branchForm, paymentBank: e.target.value })}
+                      onChange={(e) =>
+                        setBranchForm({
+                          ...branchForm,
+                          paymentBank: e.target.value,
+                        })
+                      }
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Account Name</label>
+                  <div className='form-group'>
+                    <label className='form-label'>Account Name</label>
                     <input
-                      className="input-base"
-                      placeholder="Account holder name"
+                      className='input-base'
+                      placeholder='Acc. name'
                       value={branchForm.paymentAccountName}
-                      onChange={(e) => setBranchForm({ ...branchForm, paymentAccountName: e.target.value })}
+                      onChange={(e) =>
+                        setBranchForm({
+                          ...branchForm,
+                          paymentAccountName: e.target.value,
+                        })
+                      }
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Account Number</label>
+                  <div className='form-group'>
+                    <label className='form-label'>Account Number</label>
                     <input
-                      className="input-base"
-                      placeholder="10-digit number"
+                      className='input-base'
+                      placeholder='10-digit'
+                      maxLength={10}
+                      max={10}
+                      type='number'
                       value={branchForm.paymentAccount}
-                      onChange={(e) => setBranchForm({ ...branchForm, paymentAccount: e.target.value })}
+                      onChange={(e) =>
+                        setBranchForm({
+                          ...branchForm,
+                          paymentAccount: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: 16 }}>
-                  <label className="form-label">Staff Branch Login Key * (Hashed)</label>
+                <div
+                  className='form-group'
+                  style={{ marginBottom: 16 }}>
+                  <label className='form-label'>
+                    Staff Branch Login Key * (Hashed)
+                  </label>
                   <input
-                    className="input-base"
-                    placeholder="Enter branch login passcode"
+                    className='input-base'
+                    placeholder='Enter branch login passcode'
                     value={branchForm.key}
-                    onChange={(e) => setBranchForm({ ...branchForm, key: e.target.value })}
+                    onChange={(e) =>
+                      setBranchForm({ ...branchForm, key: e.target.value })
+                    }
                   />
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                <button
+                  type='submit'
+                  className='btn btn-primary'
+                  style={{ width: '100%' }}>
                   Create Branch
                 </button>
               </motion.form>
@@ -398,70 +481,124 @@ export default function AdminProfilePage() {
             {editingBranch && (
               <motion.form
                 onSubmit={handleUpdateBranch}
-                className="glass"
-                style={{ padding: 20, border: '1px solid var(--accent-deep)' }}
-              >
+                className='glass'
+                style={{ padding: 20, border: '1px solid var(--accent-deep)' }}>
                 <h3 style={{ marginBottom: 16 }}>Edit Branch Details</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }} className="form-grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Branch Name *</label>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 12,
+                    marginBottom: 12,
+                  }}
+                  className='form-grid-2'>
+                  <div className='form-group'>
+                    <label className='form-label'>Branch Name *</label>
                     <input
-                      className="input-base"
+                      className='input-base'
                       value={editingBranch.name}
-                      onChange={(e) => setEditingBranch({ ...editingBranch, name: e.target.value })}
+                      onChange={(e) =>
+                        setEditingBranch({
+                          ...editingBranch,
+                          name: e.target.value,
+                        })
+                      }
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Address</label>
+                  <div className='form-group'>
+                    <label className='form-label'>Address</label>
                     <input
-                      className="input-base"
+                      className='input-base'
                       value={editingBranch.address}
-                      onChange={(e) => setEditingBranch({ ...editingBranch, address: e.target.value })}
+                      onChange={(e) =>
+                        setEditingBranch({
+                          ...editingBranch,
+                          address: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-                  <div className="form-group">
-                    <label className="form-label">Bank Name</label>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr 1fr',
+                    gap: 10,
+                    marginBottom: 12,
+                  }}>
+                  <div className='form-group'>
+                    <label className='form-label'>Bank Name</label>
                     <input
-                      className="input-base"
+                      className='input-base'
                       value={editingBranch.paymentBank}
-                      onChange={(e) => setEditingBranch({ ...editingBranch, paymentBank: e.target.value })}
+                      onChange={(e) =>
+                        setEditingBranch({
+                          ...editingBranch,
+                          paymentBank: e.target.value,
+                        })
+                      }
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Account Name</label>
+                  <div className='form-group'>
+                    <label className='form-label'>Account Name</label>
                     <input
-                      className="input-base"
+                      className='input-base'
                       value={editingBranch.paymentAccountName}
-                      onChange={(e) => setEditingBranch({ ...editingBranch, paymentAccountName: e.target.value })}
+                      onChange={(e) =>
+                        setEditingBranch({
+                          ...editingBranch,
+                          paymentAccountName: e.target.value,
+                        })
+                      }
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Account Number</label>
+                  <div className='form-group'>
+                    <label className='form-label'>Account Number</label>
                     <input
-                      className="input-base"
+                      className='input-base'
+                      type='number'
                       value={editingBranch.paymentAccount}
-                      onChange={(e) => setEditingBranch({ ...editingBranch, paymentAccount: e.target.value })}
+                      onChange={(e) =>
+                        setEditingBranch({
+                          ...editingBranch,
+                          paymentAccount: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: 16 }}>
-                  <label className="form-label">New Login Key (leave blank to keep unchanged)</label>
+                <div
+                  className='form-group'
+                  style={{ marginBottom: 16 }}>
+                  <label className='form-label'>
+                    New Login Key (leave blank to keep unchanged)
+                  </label>
                   <input
-                    className="input-base"
-                    placeholder="Enter new login passcode"
-                    onChange={(e) => setEditingBranch({ ...editingBranch, key: e.target.value } as any)}
+                    className='input-base'
+                    placeholder='Enter new login passcode'
+                    onChange={(e) =>
+                      setEditingBranch({
+                        ...editingBranch,
+                        key: e.target.value,
+                      } as any)
+                    }
                   />
                 </div>
 
                 <div style={{ display: 'flex', gap: 12 }}>
-                  <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setEditingBranch(null)}>
+                  <button
+                    type='button'
+                    className='btn btn-secondary'
+                    style={{ flex: 1 }}
+                    onClick={() => setEditingBranch(null)}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                  <button
+                    type='submit'
+                    className='btn btn-primary'
+                    style={{ flex: 1 }}>
                     Save Changes
                   </button>
                 </div>
@@ -469,8 +606,10 @@ export default function AdminProfilePage() {
             )}
 
             {/* Branches List */}
-            <div className="glass" style={{ padding: 0, overflow: 'auto' }}>
-              <table className="inv-table">
+            <div
+              className='glass'
+              style={{ padding: 0, overflow: 'auto' }}>
+              <table className='inv-table'>
                 <thead>
                   <tr>
                     <th>Branch</th>
@@ -480,80 +619,113 @@ export default function AdminProfilePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {branchesLoading ? (
+                  {branchesLoading ?
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', padding: 20 }}>
+                      <td
+                        colSpan={4}
+                        style={{ textAlign: 'center', padding: 20 }}>
                         Loading branches...
                       </td>
                     </tr>
-                  ) : branches?.length === 0 ? (
+                  : branches?.length === 0 ?
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)' }}>
+                      <td
+                        colSpan={4}
+                        style={{
+                          textAlign: 'center',
+                          padding: 20,
+                          color: 'var(--text-muted)',
+                        }}>
                         No branches created yet.
                       </td>
                     </tr>
-                  ) : (
-                    branches?.map((b) => (
+                  : branches?.map((b) => (
                       <tr key={b.id}>
                         <td style={{ fontWeight: 600 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <Building size={16} color="var(--accent-deep)" />
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                            }}>
+                            <Building
+                              size={16}
+                              color='var(--accent-deep)'
+                            />
                             {b.name}
                           </div>
                         </td>
                         <td>
-                          {b.address ? (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem' }}>
-                              <MapPin size={12} color="var(--text-muted)" />
+                          {b.address ?
+                            <span
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                fontSize: '0.8rem',
+                              }}>
+                              <MapPin
+                                size={12}
+                                color='var(--text-muted)'
+                              />
                               {b.address}
                             </span>
-                          ) : (
-                            <span style={{ color: 'var(--text-light)', fontSize: '0.8rem' }}>No location</span>
-                          )}
+                          : <span
+                              style={{
+                                color: 'var(--text-light)',
+                                fontSize: '0.8rem',
+                              }}>
+                              No location
+                            </span>
+                          }
                         </td>
                         <td>
-                          {b.paymentAccount ? (
-                            <div style={{ fontSize: '0.75rem', lineHeight: 1.3 }}>
+                          {b.paymentAccount ?
+                            <div
+                              style={{ fontSize: '0.75rem', lineHeight: 1.3 }}>
                               <p style={{ fontWeight: 600 }}>{b.paymentBank}</p>
                               <p style={{ color: 'var(--text-muted)' }}>
                                 {b.paymentAccount} ({b.paymentAccountName})
                               </p>
                             </div>
-                          ) : (
-                            <span style={{ color: 'var(--text-light)', fontSize: '0.8rem' }}>Not set</span>
-                          )}
+                          : <span
+                              style={{
+                                color: 'var(--text-light)',
+                                fontSize: '0.8rem',
+                              }}>
+                              Not set
+                            </span>
+                          }
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button
-                              className="btn btn-ghost btn-sm"
+                              className='btn btn-ghost btn-sm'
                               style={{ padding: 6 }}
-                              onClick={() => setEditingBranch(b)}
-                            >
+                              onClick={() => setEditingBranch(b)}>
                               <Pencil size={14} />
                             </button>
                             <button
-                              className="btn btn-ghost btn-sm"
+                              className='btn btn-ghost btn-sm'
                               style={{ padding: 6, color: 'var(--danger)' }}
                               onClick={() => {
                                 const productWarning = `⚠️ Delete "${b.name}" branch?\n\nThis will PERMANENTLY delete the branch AND all products linked to it.\n\nThis action cannot be undone.`;
                                 if (confirm(productWarning)) {
                                   deleteBranchMut.mutate(b.id);
                                 }
-                              }}
-                            >
+                              }}>
                               <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
                       </tr>
                     ))
-                  )}
+                  }
                 </tbody>
               </table>
             </div>
           </motion.div>
-        )}
+        }
       </AnimatePresence>
     </div>
   );
