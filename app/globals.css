@@ -71,7 +71,11 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  width:100vw;
+  width:100dvw;
+  margin:0;
 }
 h1,
 h2,
@@ -126,14 +130,18 @@ a {
 
 /* Page wrapper — leaves room for bottom tab bar */
 .page-wrapper {
+width: 100%;
+max-width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   padding-bottom: 100px;
+  position: relative;
   background: linear-gradient(180deg, #fff7f8 0%, #ffffff 50%);
 }
 
 /* Bottom Tab Bar */
 .tab-bar {
-  width: 90vmin;
+  width: 80dvw;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -146,6 +154,7 @@ a {
   backdrop-filter: blur(40px);
   display: flex;
   align-items: center;
+  align-self: center;
   justify-content: space-around;
   justify-self: center;
   z-index: 200;
@@ -204,6 +213,7 @@ a {
 /* Auth layout */
 .auth-container {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -466,6 +476,7 @@ a {
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   width: 100%;
   max-width: 500px;
+  max-height: 90dvh;
   max-height: 90vh;
   overflow-y: auto;
   animation: slideUp 250ms var(--ease);
@@ -525,6 +536,7 @@ a {
 .admin-shell {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 .admin-sidebar {
   width: 220px;

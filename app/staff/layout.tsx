@@ -16,7 +16,11 @@ const tabs = [
   { href: '/staff/profile', icon: UserCircle, label: 'Profile' },
 ];
 
-export default function StaffLayout({ children }: { children: React.ReactNode }) {
+export default function StaffLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const items = useCartStore((s) => s.items);
@@ -43,63 +47,85 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
 
   if (!mounted || !_hasHydrated) {
     return (
-      <div className="auth-container">
-        <div className="spinner spinner-lg" style={{ color: 'var(--accent)' }} />
+      <div className='auth-container'>
+        <div
+          className='spinner spinner-lg'
+          style={{ color: 'var(--accent)' }}
+        />
       </div>
     );
   }
 
   if (!isLogin && !user) {
     return (
-      <div className="auth-container">
-        <div className="spinner spinner-lg" style={{ color: 'var(--accent)' }} />
+      <div className='auth-container'>
+        <div
+          className='spinner spinner-lg'
+          style={{ color: 'var(--accent)' }}
+        />
       </div>
     );
   }
 
   if (!isLogin && !isSelectBranch && !branch) {
     return (
-      <div className="auth-container">
-        <div className="spinner spinner-lg" style={{ color: 'var(--accent)' }} />
+      <div className='auth-container'>
+        <div
+          className='spinner spinner-lg'
+          style={{ color: 'var(--accent)' }}
+        />
       </div>
     );
   }
 
   return (
-    <div className="page-wrapper">
+    <div className='page-wrapper'>
       {/* Top bar */}
       {!hideBar && (
         <motion.div
-          className="top-bar"
+          className='top-bar'
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
+          transition={{ duration: 0.3 }}>
           <div>
-            <h4 style={{ fontSize: '1.2rem', lineHeight: 1 }} className="gradient-text">
+            <h4
+              style={{ fontSize: '1.2rem', lineHeight: 1 }}
+              className='gradient-text'>
               Skincare Bestie
             </h4>
             <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-              {branch?.branchName ? branch.branchName.charAt(0).toUpperCase() + branch.branchName.slice(1) + ' branch' : 'No branch'}
+              {branch?.branchName ?
+                branch.branchName.charAt(0).toUpperCase() +
+                branch.branchName.slice(1) +
+                ' branch'
+              : 'No branch'}
             </p>
           </div>
         </motion.div>
       )}
 
-      {children}
+      <div
+        style={{
+          width: '100%',
+        }}>
+        {children}
+      </div>
 
       {/* Bottom Tab Bar */}
       {!hideBar && (
-        <nav className="tab-bar">
+        <nav className='tab-bar'>
           {tabs.map((tab) => {
             const active = pathname === tab.href;
             const Icon = tab.icon;
             return (
-              <Link key={tab.href} href={tab.href} className={`tab-item ${active ? 'active' : ''}`}>
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`tab-item ${active ? 'active' : ''}`}>
                 <Icon size={22} />
                 {tab.label}
                 {tab.label === 'Cart' && count > 0 && (
-                  <span className="tab-badge">{count}</span>
+                  <span className='tab-badge'>{count}</span>
                 )}
               </Link>
             );
