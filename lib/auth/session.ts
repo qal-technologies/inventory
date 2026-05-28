@@ -57,7 +57,7 @@ export async function setBranchSession(payload: BranchSession): Promise<void> {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/',
-    maxAge: 60 * 60 * 12, // 12 hours
+    expires:3650,
   });
 }
 
