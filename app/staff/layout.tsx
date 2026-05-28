@@ -1,7 +1,7 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Bell, ShoppingCart, UserCircle } from 'lucide-react';
+import { Home, Bell, ShoppingCart, UserCircle, Search } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { motion } from 'framer-motion';

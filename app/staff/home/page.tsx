@@ -29,14 +29,19 @@ export default function StaffHomePage() {
 
   return (
     <motion.div
-      style={{ padding: '0px 10px 0', overflowY: 'hidden' }}
+      style={{ padding: '0px 10px 0', position: 'relative' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}>
       {/* Search */}
       <div
         className='search-wrap'
-        style={{ marginBottom: 16 }}>
+        style={{
+          marginBottom: 16,
+          position: 'sticky',
+          top: 10,
+          zIndex: 999,
+        }}>
         <Search
           size={18}
           color='var(--text-light)'

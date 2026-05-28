@@ -34,7 +34,7 @@ export async function setSession(payload: SessionPayload): Promise<void> {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24 * 30, 
   });
 }
 
@@ -57,7 +57,7 @@ export async function setBranchSession(payload: BranchSession): Promise<void> {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/',
-    expires:3650,
+    maxAge: 60 * 60 * 24 * 3650,
   });
 }
 
