@@ -56,7 +56,7 @@ export default function StaffHomePage() {
 
   // Filter for display (local search over fullCollection)
   const filtered = useMemo(() => {
-    const stocked = fullCollection.filter((p) => p.stock > 0 && p.branchId === branchId);
+    const stocked = fullCollection.filter((p) => p.stock > 0 && String(p.branchId).trim() === String(branchId).trim());
 
     if (!debouncedSearch.trim()) {
       return stocked.slice(0, 30); // Show top 30
