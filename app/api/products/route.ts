@@ -26,30 +26,40 @@ export async function GET(req: NextRequest) {
       throw new ValidationError('limit must be between 1 and 100');
     }
 
-    let q = adminDb
-      .collection('products')
-      .orderBy('createdAt', 'desc')
-      .limit(limitCount);
+    let q: FirebaseFirestore.Query = adminDb.collection('products');
 
-    // FIX: where() must come before orderBy()
     if (branchId) {
-      q = adminDb
-        .collection('products')
-        .where('branchId', '==', branchId)
-        .orderBy('createdAt', 'desc')
-        .limit(limitCount);
+      q = q.where('branchId', '==', branchId);
     }
 
-    if (lastId) {
-      const lastDoc = await adminDb.collection('products').doc(lastId).get();
-      if (!lastDoc.exists) {
-        throw new ValidationError('Invalid lastId: document not found');
+    // Robust query with automatic fallback for missing indexes
+    let products = [];
+    try {
+      let qWithSort = q.orderBy('createdAt', 'desc').limit(limitCount);
+      if (lastId) {
+        const lastDoc = await adminDb.collection('products').doc(lastId).get();
+        if (lastDoc.exists) qWithSort = qWithSort.startAfter(lastDoc);
       }
-      q = q.startAfter(lastDoc);
+      const snap = await qWithSort.get();
+      products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (err: any) {
+      // Fallback: If orderBy fails (e.g. missing index), fetch more and sort in-memory
+      console.warn('[Products API] OrderBy failed, falling back to manual sort', err.message);
+      let qFallback = q.limit(limitCount * 5); // Fetch more for better sorting
+      if (lastId) {
+        const lastDoc = await adminDb.collection('products').doc(lastId).get();
+        if (lastDoc.exists) qFallback = qFallback.startAfter(lastDoc);
+      }
+      const snap = await qFallback.get();
+      products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      products.sort((a: any, b: any) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
+      products = products.slice(0, limitCount);
     }
 
-    const snap = await q.get();
-    const products = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     console.log('[Products API] Fetched products', {
       branchId: branchId || 'all',

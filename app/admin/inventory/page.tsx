@@ -42,17 +42,20 @@ export default function AdminInventoryPage() {
 
   useEffect(() => {
     if (productsPage) {
-      setAllProducts((prev) => {
-        const existingIds = new Set(prev.map((p) => p.id));
-        const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
-        return [...prev, ...newProducts];
-      });
+      if (!lastId) {
+        setAllProducts(productsPage);
+      } else {
+        setAllProducts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
+          return [...prev, ...newProducts];
+        });
+      }
     }
-  }, [productsPage]);
+  }, [productsPage, lastId]);
 
   // Reset when filters change
   useEffect(() => {
-    setAllProducts([]);
     setLastId(undefined);
   }, [branchId]);
 

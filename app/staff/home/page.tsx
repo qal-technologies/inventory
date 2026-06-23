@@ -15,8 +15,21 @@ export default function StaffHomePage() {
   const [limitCount] = useState(100);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+
+  // Search state with debouncing
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Handle search debouncing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Fetch initial/paginated products
   const { data: productsPage, isLoading, isFetching } = useProducts(
@@ -28,25 +41,28 @@ export default function StaffHomePage() {
   // Server-side search (only when search is active)
   const { data: searchResults, isLoading: isSearching } = useProductSearch(
     branchId || undefined,
-    search,
-    search.trim().length > 0
+    debouncedSearch,
+    debouncedSearch.trim().length > 0
   );
 
   // Accumulate products from pagination
   useEffect(() => {
     if (productsPage) {
-      setAllProducts((prev) => {
-        const existingIds = new Set(prev.map((p) => p.id));
-        const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
-        if (newProducts.length === 0) return prev;
-        return [...prev, ...newProducts];
-      });
+      if (!lastId) {
+        setAllProducts(productsPage);
+      } else {
+        setAllProducts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
+          if (newProducts.length === 0) return prev;
+          return [...prev, ...newProducts];
+        });
+      }
     }
-  }, [productsPage]);
+  }, [productsPage, lastId]);
 
   // Reset when branch changes
   useEffect(() => {
-    setAllProducts([]);
     setLastId(undefined);
     setSearch('');
   }, [branchId]);
@@ -54,13 +70,13 @@ export default function StaffHomePage() {
   // Filter for display (use search results if searching, otherwise all products)
   const filtered = useMemo(() => {
     // If search is active, use server-side search results
-    if (search.trim().length > 0) {
-      return (searchResults || []); // Removed p.stock > 0 filter to show out of stock too if searched
+    if (debouncedSearch.trim().length > 0) {
+      return (searchResults || []);
     }
 
     // Otherwise use loaded products
-    return allProducts; // Removed p.stock > 0 filter here as well
-  }, [allProducts, searchResults, search]);
+    return allProducts;
+  }, [allProducts, searchResults, debouncedSearch]);
 
   // Handle load more
   const handleLoadMore = useCallback(() => {
@@ -77,7 +93,7 @@ export default function StaffHomePage() {
     }
   }, [isFetching]);
 
-  const isLoading_search = search.trim().length > 0 && isSearching;
+  const isLoading_search = debouncedSearch.trim().length > 0 && isSearching;
   const showSkeleton = (isLoading || isLoading_search) && filtered.length === 0;
 
   return (
@@ -103,9 +119,8 @@ export default function StaffHomePage() {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            // Don't reset pagination when searching
           }}
-          disabled={isLoading_search}
+          // REMOVED: disabled={isLoading_search} to prevent focus loss
           aria-label='Search products'
         />
         {isLoading_search && (

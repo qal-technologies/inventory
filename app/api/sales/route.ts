@@ -28,24 +28,37 @@ export async function GET(req: NextRequest) {
     }
 
     // Clone for stats (without limit/pagination)
-    const statsQuery = baseQuery;
+    // Limits the stats query to the last 1000 items to avoid full collection scan if it grows too large
+    const statsQuery = baseQuery.limit(1000);
 
-    // Apply sorting and pagination to the main query
-    let q = baseQuery.orderBy('createdAt', 'desc').limit(limitCount);
-
-    if (lastId) {
-      const lastDoc = await adminDb.collection('sales').doc(lastId).get();
-      if (lastDoc.exists) {
-        q = q.startAfter(lastDoc);
+    // Robust query for sales
+    let sales = [];
+    try {
+      let qWithSort = baseQuery.orderBy('createdAt', 'desc').limit(limitCount);
+      if (lastId) {
+        const lastDoc = await adminDb.collection('sales').doc(lastId).get();
+        if (lastDoc.exists) qWithSort = qWithSort.startAfter(lastDoc);
       }
+      const snap = await qWithSort.get();
+      sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (err: any) {
+      console.warn('[Sales API] OrderBy failed, falling back to manual sort', err.message);
+      let qFallback = baseQuery.limit(limitCount * 5);
+      if (lastId) {
+        const lastDoc = await adminDb.collection('sales').doc(lastId).get();
+        if (lastDoc.exists) qFallback = qFallback.startAfter(lastDoc);
+      }
+      const snap = await qFallback.get();
+      sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      sales.sort((a: any, b: any) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
+      sales = sales.slice(0, limitCount);
     }
 
-    const [salesSnap, statsSnap] = await Promise.all([
-      q.get(),
-      statsQuery.get()
-    ]);
-
-    const sales = salesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    const statsSnap = await statsQuery.get();
 
     // Aggregated stats
     const stats = statsSnap.docs.reduce((acc, doc) => {

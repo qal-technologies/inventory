@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -39,16 +40,42 @@ const dotColors = {
 
 export default function AdminNotificationsPage() {
   const queryClient = useQueryClient();
+  const [limitCount] = useState(20);
+  const [lastId, setLastId] = useState<string | undefined>(undefined);
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
 
-  const { data: notifications, isLoading } = useQuery<Notification[]>({
-    queryKey: ['admin-notifications'],
+  const { data: notificationsResult, isLoading, isFetching } = useQuery<{
+    notifications: Notification[];
+    hasMore: boolean;
+  }>({
+    queryKey: ['admin-notifications', limitCount, lastId],
     queryFn: async () => {
-      const res = await fetch('/api/notifications');
+      const params = new URLSearchParams();
+      params.set('limit', limitCount.toString());
+      if (lastId) params.set('lastId', lastId);
+
+      const res = await fetch(`/api/notifications?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch notifications');
       return res.json();
     },
     staleTime: 60_000, // Fresh for 1 minute
   });
+
+  useEffect(() => {
+    if (notificationsResult?.notifications) {
+      if (!lastId) {
+        setAllNotifications(notificationsResult.notifications);
+      } else {
+        setAllNotifications((prev) => {
+          const existingIds = new Set(prev.map((n) => n.id));
+          const newNotifs = notificationsResult.notifications.filter((n) => !existingIds.has(n.id));
+          return [...prev, ...newNotifs];
+        });
+      }
+    }
+  }, [notificationsResult?.notifications, lastId]);
+
+  const isActuallyLoading = isLoading || (isFetching && allNotifications.length === 0);
 
   const markReadMut = useMutation({
     mutationFn: async (id: string) => {
@@ -79,8 +106,8 @@ export default function AdminNotificationsPage() {
   });
 
   const handleMarkAllRead = async () => {
-    if (!notifications) return;
-    const unread = notifications.filter((n) => !n.read);
+    if (!allNotifications) return;
+    const unread = allNotifications.filter((n) => !n.read);
     if (unread.length === 0) return;
     try {
       await Promise.all(unread.map((n) => markReadMut.mutateAsync(n.id)));
@@ -90,17 +117,7 @@ export default function AdminNotificationsPage() {
     }
   };
 
-  const handleDeleteNotif = async (id: string) => {
-    if (!notifications || !id) return;
-    try {
-      await deleteNotif.mutateAsync(id);
-      toast.success('Notification deleted');
-    } catch {
-      toast.error('Failed to delete Notification');
-    }
-  };
-
-  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+  const unreadCount = allNotifications?.filter((n) => !n.read).length || 0;
 
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 60 }}>
@@ -141,7 +158,7 @@ export default function AdminNotificationsPage() {
       <div
         className='glass'
         style={{ padding: '8px 20px', minHeight: 180 }}>
-        {isLoading ?
+        {isActuallyLoading ?
           <div
             style={{
               display: 'flex',
@@ -157,7 +174,7 @@ export default function AdminNotificationsPage() {
               />
             ))}
           </div>
-        : !notifications || notifications.length === 0 ?
+        : allNotifications.length === 0 ?
           <div
             style={{
               textAlign: 'center',
@@ -172,7 +189,7 @@ export default function AdminNotificationsPage() {
           </div>
         : <div style={{ display: 'flex', flexDirection: 'column' }}>
             <AnimatePresence>
-              {notifications.map((n, i) => {
+              {allNotifications.map((n, i) => {
                 const Icon = icons[n.type] || Info;
                 return (
                   <motion.div
@@ -187,7 +204,7 @@ export default function AdminNotificationsPage() {
                       alignItems: 'flex-start',
                       padding: '14px 0',
                       borderBottom:
-                        i < notifications.length - 1 ?
+                        i < allNotifications.length - 1 ?
                           '1px solid var(--border)'
                         : 'none',
                       cursor: !n.read ? 'pointer' : 'default',
@@ -241,16 +258,6 @@ export default function AdminNotificationsPage() {
                         {format(new Date(n.createdAt), 'MMM d, h:mm a')}
                       </p>
                     </div>
-
-                    {/* <div
-                      style={{
-                        display: 'flex',
-                        placeItems: 'center',
-                        marginLeft:5,
-                      }}
-                    onClick={()=> deleteNotif.mutate(n.id)}>
-                      <Trash color='red' size={18}/>
-                    </div> */}
                   </motion.div>
                 );
               })}
@@ -258,6 +265,30 @@ export default function AdminNotificationsPage() {
           </div>
         }
       </div>
+
+      {/* Load More Button */}
+      {notificationsResult?.hasMore && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: 20,
+          }}>
+          <button
+            className='btn-primary'
+            onClick={() => setLastId(allNotifications[allNotifications.length - 1]?.id)}
+            disabled={isFetching}
+            style={{
+              width: 'auto',
+              padding: '10px 20px',
+              border: 'none',
+              borderRadius: '12px',
+              opacity: isFetching ? 0.7 : 1,
+            }}>
+            {isFetching ? 'Loading...' : 'Load More Notifications'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -29,20 +29,29 @@ export default function AdminHistoryPage() {
     isFetching,
   } = useSales(branchId || undefined, limitCount, lastId, month || undefined);
 
+  const isActuallyLoading = isLoading || (isFetching && allSales.length === 0);
+
   useEffect(() => {
     if (salesResult?.sales) {
-      setAllSales((prev) => {
-        const existingIds = new Set(prev.map((s) => s.id));
-        const newSales = salesResult.sales.filter((s) => !existingIds.has(s.id));
-        return [...prev, ...newSales];
-      });
+      if (!lastId) {
+        // Reset when we're on the first page
+        setAllSales(salesResult.sales);
+      } else {
+        // Append for subsequent pages
+        setAllSales((prev) => {
+          const existingIds = new Set(prev.map((s) => s.id));
+          const newSales = salesResult.sales.filter((s) => !existingIds.has(s.id));
+          return [...prev, ...newSales];
+        });
+      }
     }
-  }, [salesResult?.sales]);
+  }, [salesResult?.sales, lastId]);
 
-  // Reset when filters change
+  // Reset pagination state when filters change
   useEffect(() => {
-    setAllSales([]);
     setLastId(undefined);
+    // Note: We don't clear allSales here because the effect above
+    // will replace it once the new first page arrives.
   }, [branchId, month]);
 
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
@@ -199,7 +208,7 @@ export default function AdminHistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading ?
+            {isActuallyLoading ?
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
                   {Array.from({ length: 6 }).map((_, j) => (
@@ -212,7 +221,7 @@ export default function AdminHistoryPage() {
                   ))}
                 </tr>
               ))
-            : allSales.length === 0 ?
+            : !isActuallyLoading && allSales.length === 0 ?
               <tr>
                 <td
                   colSpan={6}
