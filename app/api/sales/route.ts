@@ -2,26 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { getSession } from '@/lib/auth/session';
 
-// GET sales — optionally filtered by branchId
+// GET sales — optionally filtered by branchId, limit, and lastId
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get('branchId');
+    const limitCount = parseInt(searchParams.get('limit') || '20');
+    const lastId = searchParams.get('lastId');
 
-    const snap = await adminDb.collection('sales').get();
-    let sales = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let q = adminDb
+      .collection('sales')
+      .orderBy('createdAt', 'desc')
+      .limit(limitCount);
 
     if (branchId) {
-      sales = sales.filter((s: any) => s.branchId === branchId);
+      q = q.where('branchId', '==', branchId);
     }
 
-    sales.sort((a: any, b: any) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
+    if (lastId) {
+      const lastDoc = await adminDb.collection('sales').doc(lastId).get();
+      if (lastDoc.exists) {
+        q = q.startAfter(lastDoc);
+      }
+    }
 
-    return NextResponse.json(sales.slice(0, 300));
+    const snap = await q.get();
+    const sales = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    return NextResponse.json(sales);
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Failed to fetch sales' }, { status: 500 });

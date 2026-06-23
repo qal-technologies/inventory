@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSessionStore } from '@/store/sessionStore';
 import { useProducts } from '@/lib/hooks/useProducts';
 import ProductCard from '@/components/shared/ProductCard';
@@ -19,7 +19,7 @@ export default function StaffHomePage() {
     isFetching,
   } = useProducts(branch?.branchId || 'calabar', limitCount, lastId);
 
-  useMemo(() => {
+  useEffect(() => {
     if (productsPage) {
       setAllProducts((prev) => {
         const existingIds = new Set(prev.map((p) => p.id));
@@ -30,7 +30,7 @@ export default function StaffHomePage() {
   }, [productsPage]);
 
   // Reset when branch changes
-  useMemo(() => {
+  useEffect(() => {
     setAllProducts([]);
     setLastId(undefined);
   }, [branch?.branchId]);
