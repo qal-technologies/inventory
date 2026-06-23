@@ -17,6 +17,7 @@ export default function StaffHomePage() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   // Search state with debouncing
+  const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const [isLoadingMore, setIsLoadingMore] = useState(false);
