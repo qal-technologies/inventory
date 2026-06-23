@@ -116,7 +116,7 @@ export default function StaffLayout({
 
       {/* Bottom Tab Bar */}
       {!hideBar && (
-        <nav className='tab-bar'>
+        <nav className='tab-bar' style={{maxWidth:'400px'}}>
           {tabs.map((tab) => {
             const active = pathname === tab.href;
             const Icon = tab.icon;
