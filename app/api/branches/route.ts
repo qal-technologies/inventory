@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const snap = await adminDb.collection('branches').orderBy('name').get();
     const branches = snap.docs
-      .map((d) => {
+      .map((d:any) => {
         const data = d.data();
         return {
           id: d.id,
@@ -19,7 +19,7 @@ export async function GET() {
           paymentAccountName: data.paymentAccountName || '',
         };
       })
-      .filter((b) => b.name);
+      .filter((b:any) => b.name);
     return NextResponse.json(branches);
   } catch (err) {
     console.error(err);
