@@ -305,7 +305,10 @@ export default function AdminHistoryPage() {
             disabled={isFetching}
             style={{
               width: 'auto',
-              padding: '0 24px',
+              padding: '10px',
+              paddingInline: '20px',
+              border:'none',
+              borderRadius: '12px',
               opacity: isFetching ? 0.7 : 1,
             }}>
             {isFetching ? 'Loading...' : 'Load More Sales'}

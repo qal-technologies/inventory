@@ -9,7 +9,7 @@ import { Search } from 'lucide-react';
 
 export default function StaffHomePage() {
   const branch = useSessionStore((s) => s.branch);
-  const [limitCount] = useState(20);
+  const [limitCount] = useState(100);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
   const [allProducts, setAllProducts] = useState<any[]>([]);
 
