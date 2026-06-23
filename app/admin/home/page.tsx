@@ -9,6 +9,7 @@ import {
   ShoppingBag,
   Package,
   Award,
+  Filter,
 } from 'lucide-react';
 import type { Product } from '@/lib/firebase/converters';
 import { fetchAllProducts } from '@/lib/services/products';
@@ -64,6 +65,14 @@ export default function AdminHomePage() {
     }
     return res;
   }, [sales, branch, month]);
+
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    if (!branch) return products;
+    const branchObj = branches?.find((b) => b.name === branch);
+    if (!branchObj) return products;
+    return products.filter((p) => p.branchId === branchObj.id);
+  }, [products, branch, branches]);
 
   // ── Compute stats ─────────────────────────────────────────────────────────────
   const today = new Date().toDateString();
@@ -145,6 +154,12 @@ export default function AdminHomePage() {
 
   const recentSales = filteredSales.slice(0, 5);
   const isLoading = salesLoading || productsLoading;
+
+  const getBranchName = (id?: string) => {
+    if (!id) return 'General';
+    const b = branches?.find((b) => b.id === id);
+    return b?.name || id;
+  };
 
   return (
     <div>

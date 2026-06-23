@@ -8,16 +8,16 @@ export default function Providers({ children }: { children: ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { 
+          queries: {
             // QUOTA OPTIMIZATION: Cache all reads for 10 minutes. Do not refetch aggressively in the background.
             staleTime: 600_000,
-            gcTime: 900_000, // 15 minutes 
+            gcTime: 900_000, // 15 minutes
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-            retry: 1 
+            retry: 1,
           },
         },
-      })
+      }),
   );
 
   return (
