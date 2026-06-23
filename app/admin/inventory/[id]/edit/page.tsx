@@ -146,22 +146,6 @@ export default function EditProductPage() {
         <h3 style={{ marginBottom: 20 }}>Edit Product Details</h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Image upload */}
-          <div className="form-group">
-            <label className="form-label">Product Image</label>
-            <label className="dropzone" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              {imagePreview ? (
-                <img src={imagePreview} alt="Preview" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 'var(--radius-md)' }} />
-              ) : (
-                <ImageIcon size={32} color="var(--pink-300)" />
-              )}
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                {imagePreview ? 'Change Image' : 'Click to upload image'}
-              </span>
-              <input type="file" accept="image/*" onChange={handleImage} style={{ display: 'none' }} />
-            </label>
-          </div>
-
           <div className="form-group">
             <label className="form-label">Name *</label>
             <input className="input-base" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Product name" />

@@ -10,6 +10,7 @@ import { useBranches } from '@/lib/hooks/useBranches';
 import { useProducts } from '@/lib/hooks/useProducts';
 import { useSessionStore } from '@/store/sessionStore';
 import type { Product } from '@/lib/firebase/converters';
+import {productCache} from '@/lib/cache/productCache';
 
 type Tab = 'products' | 'add';
 
