@@ -42,11 +42,9 @@ export default function StaffLayout({
     if (!isLogin) {
       if (!user) {
         router.replace('/login');
-      } else if (!isSelectBranch && !branchId) {
-        router.replace('/staff/select-branch');
       }
     }
-  }, [user, branchId, isLogin, isSelectBranch, router, _hasHydrated]);
+  }, [user, isLogin, router, _hasHydrated]);
 
   if (!mounted || !_hasHydrated) {
     return (
@@ -70,16 +68,6 @@ export default function StaffLayout({
     );
   }
 
-  if (!isLogin && !isSelectBranch && !branchId) {
-    return (
-      <div className='auth-container'>
-        <div
-          className='spinner spinner-lg'
-          style={{ color: 'var(--accent)' }}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className='page-wrapper'>

@@ -11,6 +11,7 @@ import {
   ShoppingBag,
   TrendingUp,
   Calendar,
+  RefreshCcw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { signOut } from 'firebase/auth';
@@ -101,6 +102,24 @@ export default function StaffProfilePage() {
             {user?.role}
           </span>
         </div>
+
+        <button
+          className='btn btn-ghost'
+          style={{
+            marginTop: 16,
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            color: 'var(--accent-deep)',
+            border: '1px solid var(--accent-deep)',
+          }}
+          onClick={() => router.push('/staff/select-branch')}
+        >
+          <RefreshCcw size={16} />
+          {branchId ? 'Change Branch' : 'Select Branch'}
+        </button>
       </div>
 
       {/* Logout */}

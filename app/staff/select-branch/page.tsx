@@ -4,14 +4,15 @@ import { useRouter } from 'next/navigation';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useSessionStore } from '@/store/sessionStore';
 import { motion } from 'framer-motion';
-import { MapPin, Key, ArrowRight, Building2 } from 'lucide-react';
+import { MapPin, Key, ArrowRight, Building2, ChevronLeft } from 'lucide-react';
 import { toastError } from '@/lib/error-handler';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
 
 export default function SelectBranchPage() {
   const router = useRouter();
   const { data: branches, isLoading } = useBranches();
-  const setBranch = useSessionStore((s) => s.setBranch);
+  const { setBranch, branchId } = useSessionStore();
   const [selectedId, setSelectedId] = useState('');
   const [key, setKey] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,7 +51,25 @@ export default function SelectBranchPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28, position: 'relative' }}>
+          {branchId && (
+            <Link
+              href="/staff/home"
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: '0.875rem'
+              }}
+            >
+              <ChevronLeft size={16} />
+              Back
+            </Link>
+          )}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}

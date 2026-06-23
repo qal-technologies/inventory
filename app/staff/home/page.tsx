@@ -7,7 +7,8 @@ import ProductCard from '@/components/shared/ProductCard';
 import type { Product } from '@/lib/firebase/converters';
 import SkeletonCard from '@/components/shared/SkeletonCard';
 import { motion } from 'framer-motion';
-import { Search, AlertCircle } from 'lucide-react';
+import { Search, AlertCircle, MapPin } from 'lucide-react';
+import Link from 'next/link';
 
 export default function StaffHomePage() {
   const { branchId } = useSessionStore();
@@ -127,6 +128,48 @@ export default function StaffHomePage() {
             <SkeletonCard key={i} index={i} />
           ))}
         </div>
+      ) : !branchId ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            textAlign: 'center',
+            padding: '60px 20px',
+            color: 'var(--text-muted)',
+            fontSize: '0.95rem',
+            userSelect: 'none',
+            width: '100%',
+            height: '50%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255, 193, 7, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <MapPin size={40} color="var(--warning)" />
+          </div>
+          <div>
+            <h3 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>No Branch Selected</h3>
+            <p>Please select a branch to view products and start selling.</p>
+          </div>
+          <Link href="/staff/select-branch">
+            <button className="btn-primary" style={{ width: 'auto', padding: '0 24px' }}>
+              Select Branch
+            </button>
+          </Link>
+        </motion.div>
       ) : filtered.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -147,9 +190,7 @@ export default function StaffHomePage() {
           <p>
             {search
               ? `No products match "${search}"`
-              : !branchId
-                ? 'No branch selected. Please select a branch in your profile or at login.'
-                : 'No products in stock at this branch'}
+              : 'No products in stock at this branch'}
           </p>
           {search && allProducts.length > 0 && (
             <p
