@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const branchId = searchParams.get('branchId');
 
     const snap = await adminDb.collection('notifications').get();
-    let list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let list = snap.docs.map((d:any) => ({ id: d.id, ...d.data() }));
 
     if (branchId) {
       list = list.filter((n: any) => n.branchId === branchId);

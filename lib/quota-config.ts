@@ -5,5 +5,5 @@
  * This is useful when Firestore quota is exceeded or during development.
  */
 export const QUOTA_CONFIG = {
-  USE_MOCK_DATA: false,
+  USE_MOCK_DATA: false, // Default to true as requested since Firestore is locked
 };
