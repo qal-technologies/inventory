@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadProductImage } from '@/lib/cloudinary';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Package, Pencil, Trash2, ImageIcon } from 'lucide-react';
+import { Plus, Search, Package, Pencil, Trash2, ImageIcon, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { toastError } from '@/lib/error-handler';
 import { useBranches } from '@/lib/hooks/useBranches';
@@ -16,7 +16,17 @@ type Tab = 'products' | 'add';
 export default function AdminInventoryPage() {
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const queryClient = useQueryClient();
+
+  // Handle search debouncing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Single source of truth — read branch filter directly from store
   const { branchId, setBranch } = useSessionStore();
@@ -30,45 +40,45 @@ export default function AdminInventoryPage() {
     return b?.name || id;
   };
 
-  const [limitCount] = useState(20);
-  const [lastId, setLastId] = useState<string | undefined>(undefined);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [limitCount] = useState(30);
+  const [fullCollection, setFullCollection] = useState<Product[]>([]);
 
   const {
-    data: productsPage,
+    data: productsData,
     isLoading,
     isFetching,
-  } = useProducts(branchId || undefined, limitCount, lastId);
+    refetch,
+  } = useProducts(undefined, 5000, undefined, true); // Always fetch all for Admin
 
   useEffect(() => {
-    if (productsPage) {
-      if (!lastId) {
-        setAllProducts(productsPage);
-      } else {
-        setAllProducts((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id));
-          const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
-          return [...prev, ...newProducts];
-        });
-      }
+    if (productsData) {
+      setFullCollection(productsData);
     }
-  }, [productsPage, lastId]);
-
-  // Reset when filters change
-  useEffect(() => {
-    setLastId(undefined);
-  }, [branchId]);
+  }, [productsData]);
 
   const filtered = useMemo(() => {
-    const list = allProducts;
-    if (!search.trim()) return list;
-    const q = search.toLowerCase();
+    let list = fullCollection;
+
+    // Robust branch filter
+    if (branchId) {
+      list = list.filter(p => String(p.branchId).trim() === String(branchId).trim());
+    }
+
+    // Sort by branch if "All Branches" is selected to "categorize"
+    if (!branchId) {
+      list = [...list].sort((a, b) => (getBranchName(a.branchId) || '').localeCompare(getBranchName(b.branchId) || ''));
+    }
+
+    if (!debouncedSearch.trim()) return list.slice(0, 30); // Show only 30 by default
+
+    const q = debouncedSearch.toLowerCase();
     return list.filter(
       (p: Product) =>
         p.name.toLowerCase().includes(q) ||
-        p?.category?.toLowerCase().includes(q),
+        p?.category?.toLowerCase().includes(q) ||
+        getBranchName(p.branchId).toLowerCase().includes(q)
     );
-  }, [allProducts, search]);
+  }, [fullCollection, debouncedSearch, branchId, branches]);
 
   // QUOTA OPTIMIZATION: lowStockProducts computation removed
 
@@ -150,6 +160,17 @@ export default function AdminInventoryPage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    productCache.invalidate();
+                    refetch();
+                  }}
+                  disabled={isFetching}
+                  title="Refresh cache"
+                >
+                  <RefreshCw size={18} className={isFetching ? 'spin' : ''} />
+                </button>
                 <select
                   className='input-base'
                   style={{
@@ -343,8 +364,8 @@ export default function AdminInventoryPage() {
               </table>
             </div>
 
-            {/* QUOTA OPTIMIZATION: Simple append pagination */}
-            {productsPage && productsPage.length >= limitCount && (
+            {/* QUOTA OPTIMIZATION: Simple append pagination commented out as requested */}
+            {/* {productsPage && productsPage.length >= limitCount && (
               <div
                 style={{
                   display: 'flex',
@@ -368,7 +389,7 @@ export default function AdminInventoryPage() {
                   {isFetching ? 'Loading...' : 'Load More Products'}
                 </button>
               </div>
-            )}
+            )} */}
           </motion.div>
         : <AddProductForm
             key='add'

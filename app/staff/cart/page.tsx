@@ -42,6 +42,33 @@ export default function StaffCartPage() {
   const handleProceed = async () => {
     if (!items.length) return toast.error('Cart is empty');
     if (!branchId) return toast.error('No branch selected');
+
+    setLoading(true);
+    try {
+      // Real-time stock verification from database
+      const stockCheckPromises = items.map(async (item) => {
+        const res = await fetch(`/api/products/${item.product.id}`);
+        if (!res.ok) return { id: item.product.id, name: item.product.name, available: 0 };
+        const p = await res.json();
+        return { id: p.id, name: p.name, available: p.stock };
+      });
+
+      const dbStocks = await Promise.all(stockCheckPromises);
+      const issues = items.filter(item => {
+        const dbStock = dbStocks.find(ds => ds.id === item.product.id);
+        return dbStock && item.qty > dbStock.available;
+      });
+
+      if (issues.length > 0) {
+        const names = issues.map(i => i.product.name).join(', ');
+        return toast.error(`Stock changed! Insufficient quantity for: ${names}`);
+      }
+    } catch (err) {
+      console.error('Stock verification failed', err);
+    } finally {
+      setLoading(false);
+    }
+
     if (stockIssues)
       return toast.error(
         'Some items exceed available stock. Please adjust quantities.',

@@ -3,7 +3,7 @@ import { useSales } from '@/lib/hooks/useSales';
 import { useQuery } from '@tanstack/react-query';
 import { fetchSaleMonths } from '@/lib/services/sales';
 import { motion } from 'framer-motion';
-import { Receipt } from 'lucide-react';
+import { Receipt, RefreshCw } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useBranches } from '@/lib/hooks/useBranches';
@@ -18,41 +18,24 @@ export default function AdminHistoryPage() {
     month,
     setMonth
   } = useSessionStore();
-  const [limitCount] = useState(20);
-  const [lastId, setLastId] = useState<string | undefined>(undefined);
-  const [allSales, setAllSales] = useState<Sale[]>([]);
+  const [limitCount] = useState(30);
+  const [fullCollection, setFullCollection] = useState<Sale[]>([]);
 
   // Pass branch constraint to get accurate limits per branch
   const {
     data: salesResult,
     isLoading,
     isFetching,
-  } = useSales(branchId || undefined, limitCount, lastId, month || undefined);
+    refetch,
+  } = useSales(undefined, 5000, undefined, undefined, true); // Always fetch all for Admin
 
-  const isActuallyLoading = isLoading || (isFetching && allSales.length === 0);
+  const isActuallyLoading = isLoading || (isFetching && fullCollection.length === 0);
 
   useEffect(() => {
     if (salesResult?.sales) {
-      if (!lastId) {
-        // Reset when we're on the first page
-        setAllSales(salesResult.sales);
-      } else {
-        // Append for subsequent pages
-        setAllSales((prev) => {
-          const existingIds = new Set(prev.map((s) => s.id));
-          const newSales = salesResult.sales.filter((s) => !existingIds.has(s.id));
-          return [...prev, ...newSales];
-        });
-      }
+      setFullCollection(salesResult.sales);
     }
-  }, [salesResult?.sales, lastId]);
-
-  // Reset pagination state when filters change
-  useEffect(() => {
-    setLastId(undefined);
-    // Note: We don't clear allSales here because the effect above
-    // will replace it once the new first page arrives.
-  }, [branchId, month]);
+  }, [salesResult?.sales]);
 
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
@@ -60,8 +43,8 @@ export default function AdminHistoryPage() {
 
   // Fetch available months with sales
   const { data: availableMonths } = useQuery({
-    queryKey: ['sale-months', branchId],
-    queryFn: () => fetchSaleMonths(branchId || undefined),
+    queryKey: ['sale-months'],
+    queryFn: () => fetchSaleMonths(undefined),
   });
 
   const monthOptions = useMemo(() => {
@@ -71,9 +54,42 @@ export default function AdminHistoryPage() {
     }));
   }, [availableMonths]);
 
-  const { totalRevenue, totalProfit, totalDiscount } = useMemo(() => {
-    return salesResult?.stats || { totalRevenue: 0, totalProfit: 0, totalDiscount: 0 };
-  }, [salesResult?.stats]);
+  const filteredSales = useMemo(() => {
+    let list = fullCollection;
+
+    // Robust branch filter
+    if (branchId) {
+      list = list.filter(s => String(s.branchId).trim() === String(branchId).trim());
+    }
+
+    // Robust month filter
+    if (month) {
+      list = list.filter(s => {
+        const d = toDate(s.createdAt);
+        if (!d) return false;
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return ym === month;
+      });
+    }
+
+    return list;
+  }, [fullCollection, branchId, month]);
+
+  const stats = useMemo(() => {
+    return filteredSales.reduce((acc, s) => {
+      acc.totalRevenue += s.total || 0;
+      acc.totalProfit += s.profit || 0;
+      acc.totalDiscount += s.discount || 0;
+      return acc;
+    }, { totalRevenue: 0, totalProfit: 0, totalDiscount: 0 });
+  }, [filteredSales]);
+
+  const { totalRevenue, totalProfit, totalDiscount } = stats;
+
+  const displaySales = useMemo(() => {
+    // Show top 30 from the current filtered full collection
+    return filteredSales.slice(0, 30);
+  }, [filteredSales]);
 
   return (
     <div>
@@ -94,6 +110,18 @@ export default function AdminHistoryPage() {
           Sales History
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            className="btn btn-ghost"
+            onClick={() => {
+              const { salesCache } = require('@/lib/cache/salesCache');
+              salesCache.invalidate();
+              refetch();
+            }}
+            disabled={isFetching}
+            title="Refresh cache"
+          >
+            <RefreshCw size={18} className={isFetching ? 'spin' : ''} />
+          </button>
           {/* Branch filter */}
           <select
             className='input-base'
@@ -235,7 +263,7 @@ export default function AdminHistoryPage() {
                   : 'No sales yet'}
                 </td>
               </tr>
-            : allSales.map((sale, i) => {
+            : displaySales.map((sale, i) => {
                 const d = toDate(sale.createdAt);
                 return (
                   <motion.tr
@@ -297,8 +325,8 @@ export default function AdminHistoryPage() {
         </table>
       </div>
 
-      {/* QUOTA OPTIMIZATION: Simple append pagination */}
-      {salesResult?.hasMore && (
+      {/* QUOTA OPTIMIZATION: Simple append pagination commented out as requested */}
+      {/* {salesResult?.hasMore && (
         <div
           style={{
             display: 'flex',
@@ -321,7 +349,7 @@ export default function AdminHistoryPage() {
             {isFetching ? 'Loading...' : 'Load More Sales'}
           </button>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

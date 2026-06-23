@@ -55,7 +55,7 @@ export async function fetchSales(
  */
 export async function fetchAdminAllSales(): Promise<Sale[]> {
   try {
-    const res = await fetch('/api/sales?limit=1000'); // limit 1000 for realistic scope
+    const res = await fetch('/api/sales?limit=5000'); // limit 5000 for full collection
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.sales)) {

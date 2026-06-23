@@ -142,7 +142,7 @@ export async function fetchAdminAllProducts(): Promise<Product[]> {
   }
 
   try {
-    const res = await fetch('/api/products?limit=500');
+    const res = await fetch('/api/products?limit=5000');
     if (res.ok) {
       const list = await res.json();
       if (Array.isArray(list)) {
