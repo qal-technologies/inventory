@@ -40,7 +40,7 @@ const dotColors = {
 export default function AdminNotificationsPage() {
   const queryClient = useQueryClient();
 
-  const { data: notifications, isLoading } = useQuery<Notification[]>({
+  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ['admin-notifications'],
     queryFn: async () => {
       const res = await fetch('/api/notifications');
@@ -100,7 +100,7 @@ export default function AdminNotificationsPage() {
     }
   };
 
-  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+  const unreadCount = (notifications as Notification[]).filter((n) => !n.read).length;
 
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 60 }}>
@@ -157,7 +157,7 @@ export default function AdminNotificationsPage() {
               />
             ))}
           </div>
-        : !notifications || notifications.length === 0 ?
+        : notifications.length === 0 ?
           <div
             style={{
               textAlign: 'center',
@@ -172,7 +172,7 @@ export default function AdminNotificationsPage() {
           </div>
         : <div style={{ display: 'flex', flexDirection: 'column' }}>
             <AnimatePresence>
-              {notifications.map((n, i) => {
+              {(notifications as Notification[]).map((n, i) => {
                 const Icon = icons[n.type] || Info;
                 return (
                   <motion.div

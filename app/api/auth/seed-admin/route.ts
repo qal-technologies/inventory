@@ -26,8 +26,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ uid: userRecord.uid, role: admin ? 'admin' : 'staff' }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Seed admin error:', err);
-    return NextResponse.json({ error: err?.message || 'Failed to seed admin' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Failed to seed admin';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -1,18 +1,15 @@
 'use client';
 import { useMemo } from 'react';
 import { useSales } from '@/lib/hooks/useSales';
-import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { format } from 'date-fns';
 import {
   TrendingUp,
   DollarSign,
   ShoppingBag,
   Package,
   Award,
-  Filter,
 } from 'lucide-react';
-import type { Product } from '@/lib/firebase/converters';
-import { fetchAllProducts } from '@/lib/services/products';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useSessionStore } from '@/store/sessionStore';
 import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
@@ -25,12 +22,6 @@ export default function AdminHomePage() {
 
   const { data: sales, isLoading: salesLoading } = useSales(branchId || undefined);
 
-  // Fetch products (limited) for summary stats
-  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
-    queryKey: ['admin-products', 20],
-    queryFn: () => fetchAllProducts(20),
-    staleTime: 600_000,
-  });
 
   // Fetch branches
   const { data: branches } = useBranches();
@@ -138,13 +129,8 @@ export default function AdminHomePage() {
   // QUOTA OPTIMIZATION: Notification fetching removed from layout/header to prevent polling on mount.
 
   const recentSales = filteredSales.slice(0, 5);
-  const isLoading = salesLoading || productsLoading;
+  const isLoading = salesLoading;
 
-  const getBranchName = (id?: string) => {
-    if (!id) return 'General';
-    const b = branches?.find((b) => b.id === id);
-    return b?.name || id;
-  };
 
   return (
     <div>

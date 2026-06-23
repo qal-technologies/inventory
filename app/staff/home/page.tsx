@@ -1,6 +1,8 @@
 'use client';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSessionStore } from '@/store/sessionStore';
+import { useQuery } from '@tanstack/react-query';
+import { fetchAllBranchProducts } from '@/lib/services/products';
 import { useProducts } from '@/lib/hooks/useProducts';
 import { useProductSearch } from '@/lib/hooks/useProductSearch';
 import ProductCard from '@/components/shared/ProductCard';
@@ -212,65 +214,6 @@ export default function StaffHomePage() {
         </div>
       )}
 
-      {/* Load More Button - Only show when not searching */}
-      {!search.trim() &&
-        productsPage &&
-        productsPage.length >= limitCount && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              marginTop: 20,
-              marginBottom: 80,
-            }}
-          >
-            <button
-              className='btn-primary'
-              onClick={handleLoadMore}
-              disabled={isLoadingMore || isFetching}
-              style={{
-                width: 'auto',
-                padding: '0 24px',
-                opacity: isLoadingMore || isFetching ? 0.6 : 1,
-                cursor: isLoadingMore || isFetching ? 'not-allowed' : 'pointer',
-              }}
-              aria-busy={isLoadingMore}
-            >
-              {isLoadingMore ? 'Loading...' : 'Load More Products'}
-            </button>
-          </div>
-        )}
-
-      {/* No real-time data error state */}
-      {!isLoading &&
-        !isFetching &&
-        allProducts.length === 0 &&
-        !search && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            style={{
-              marginTop: 24,
-              padding: '16px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(255, 193, 7, 0.1)',
-              border: '1px solid rgba(255, 193, 7, 0.3)',
-              color: 'var(--text-light)',
-              fontSize: '0.9rem',
-              display: 'flex',
-              gap: '12px',
-              alignItems: 'flex-start',
-            }}
-          >
-            <AlertCircle size={20} style={{ marginTop: '2px', flexShrink: 0 }} />
-            <div>
-              <strong>No products found</strong>
-              <p style={{ marginTop: '4px', opacity: 0.8 }}>
-                This branch has no products in inventory yet. Contact your administrator to add products.
-              </p>
-            </div>
-          </motion.div>
-        )}
     </motion.div>
   );
 }
