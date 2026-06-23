@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
-import {getSession} from '@/lib/auth/session';
+import { getSession } from '@/lib/auth/session';
 import { triggerAdminPush } from '@/lib/push/triggerPush';
-
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session)
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get('branchId');
     const limitCount = parseInt(searchParams.get('limit') || '20');
     const lastId = searchParams.get('lastId');
 
-    let q: FirebaseFirestore.Query = adminDb.collection('notifications');
+    let q = adminDb.collection('notifications');
 
     if (branchId) {
       q = q.where('branchId', '==', branchId);
@@ -25,20 +25,29 @@ export async function GET(req: NextRequest) {
     try {
       let qWithSort = q.orderBy('createdAt', 'desc').limit(limitCount);
       if (lastId) {
-        const lastDoc = await adminDb.collection('notifications').doc(lastId).get();
+        const lastDoc = await adminDb
+          .collection('notifications')
+          .doc(lastId)
+          .get();
         if (lastDoc.exists) qWithSort = qWithSort.startAfter(lastDoc);
       }
       const snap = await qWithSort.get();
-      notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      notifications = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     } catch (err: any) {
-      console.warn('[Notifications API] OrderBy failed, falling back to manual sort', err.message);
+      console.warn(
+        '[Notifications API] OrderBy failed, falling back to manual sort',
+        err.message,
+      );
       let qFallback = q.limit(limitCount * 5);
       if (lastId) {
-        const lastDoc = await adminDb.collection('notifications').doc(lastId).get();
+        const lastDoc = await adminDb
+          .collection('notifications')
+          .doc(lastId)
+          .get();
         if (lastDoc.exists) qFallback = qFallback.startAfter(lastDoc);
       }
       const snap = await qFallback.get();
-      notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      notifications = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
       notifications.sort((a: any, b: any) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -49,11 +58,14 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       notifications,
-      hasMore: notifications.length === limitCount
+      hasMore: notifications.length === limitCount,
     });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch notifications' },
+      { status: 500 },
+    );
   }
 }
 
@@ -65,16 +77,22 @@ export async function PATCH(req: NextRequest) {
     }
 
     const { id } = await req.json();
-    if (!id) return NextResponse.json({ error: 'Missing notification id' }, { status: 400 });
+    if (!id)
+      return NextResponse.json(
+        { error: 'Missing notification id' },
+        { status: 400 },
+      );
 
     await adminDb.collection('notifications').doc(id).update({ read: true });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: 'Failed to mark notification as read' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to mark notification as read' },
+      { status: 500 },
+    );
   }
 }
-
 
 export async function POST(req: NextRequest) {
   try {
@@ -87,7 +105,10 @@ export async function POST(req: NextRequest) {
     const { title, message, type = 'info', branchId } = body;
 
     if (!title || !message) {
-      return NextResponse.json({ error: 'title and message are required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'title and message are required' },
+        { status: 400 },
+      );
     }
 
     // AUTOMATIC CLEANUP: Delete notifications older than 7 days
@@ -95,13 +116,15 @@ export async function POST(req: NextRequest) {
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const oneWeekAgoIso = oneWeekAgo.toISOString();
 
-    const oldNotifsSnap = await adminDb.collection('notifications')
+    const oldNotifsSnap = await adminDb
+      .collection('notifications')
       .where('createdAt', '<', oneWeekAgoIso)
+      .limit(50) // cap to 50 per cleanup call — prevents unbounded reads
       .get();
 
     if (!oldNotifsSnap.empty) {
       const batch = adminDb.batch();
-      oldNotifsSnap.docs.forEach(doc => {
+      oldNotifsSnap.docs.forEach((doc: any) => {
         batch.delete(doc.ref);
       });
       await batch.commit();
@@ -130,7 +153,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: ref.id }, { status: 201 });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: 'Failed to create notification' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create notification' },
+      { status: 500 },
+    );
   }
 }
 

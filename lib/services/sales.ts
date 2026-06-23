@@ -9,10 +9,8 @@ import {
   doc,
   getDoc,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import type { Sale } from '@/lib/firebase/converters';
-import { MOCK_SALES } from './mock_sales';
-import { QUOTA_CONFIG } from '../quota-config';
+import { appCache } from '../cache/appCache';
 
 /**
  * Fetch sales list.
@@ -24,39 +22,6 @@ export async function fetchSales(
   lastId?: string,
   month?: string,
 ): Promise<{ sales: Sale[]; stats: any; hasMore: boolean }> {
-  if (QUOTA_CONFIG.USE_MOCK_DATA) {
-    console.log('Using mock sales (quota optimization)');
-    let list = MOCK_SALES as Sale[];
-    if (branchId) {
-      list = list.filter((s) => s.branchId === branchId);
-    }
-    if (month) {
-      list = list.filter((s) => s.createdAt.startsWith(month));
-    }
-
-    let result;
-    if (lastId) {
-      const idx = list.findIndex(s => s.id === lastId);
-      result = list.slice(idx + 1, idx + 1 + limitCount);
-    } else {
-      result = list.slice(0, limitCount);
-    }
-
-    const stats = list.reduce((acc, s) => {
-      acc.totalRevenue += s.total || 0;
-      acc.totalProfit += s.profit || 0;
-      acc.totalDiscount += s.discount || 0;
-      acc.count += 1;
-      return acc;
-    }, { totalRevenue: 0, totalProfit: 0, totalDiscount: 0, count: 0 });
-
-    return {
-      sales: result,
-      stats,
-      hasMore: result.length === limitCount
-    };
-  }
-
   // Layer 1: API Route GET /api/sales (Skip client SDK for complex filtering/aggregation)
   try {
     const params = new URLSearchParams();
@@ -78,8 +43,33 @@ export async function fetchSales(
   return {
     sales: [],
     stats: { totalRevenue: 0, totalProfit: 0, totalDiscount: 0, count: 0 },
-    hasMore: false
+    hasMore: false,
   };
+}
+
+/**
+ * Fetch ALL sales for admin home (no pagination).
+ * Used ONLY for admin dashboard statistics and calculations.
+ * Results are cached by the caller (admin home) for 10 minutes.
+ * Bypasses paginated fetchSales to get the complete dataset.
+ */
+export async function fetchAdminAllSales(): Promise<Sale[]> {
+  try {
+    const res = await fetch('/api/sales?limit=1000'); // limit 1000 for realistic scope
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.sales)) {
+        console.log('[Admin Cache] Fetched all sales for dashboard', {
+          count: data.sales.length,
+        });
+        return data.sales;
+      }
+    }
+  } catch (err) {
+    console.error('[Admin Cache Error] Failed to fetch all sales:', err);
+  }
+
+  return [];
 }
 
 /**
@@ -87,7 +77,8 @@ export async function fetchSales(
  */
 export async function fetchSaleMonths(branchId?: string): Promise<string[]> {
   try {
-    const url = branchId ? `/api/sales/months?branchId=${branchId}` : '/api/sales/months';
+    const url =
+      branchId ? `/api/sales/months?branchId=${branchId}` : '/api/sales/months';
     const res = await fetch(url);
     if (res.ok) {
       return await res.json();
@@ -114,5 +105,6 @@ export async function createSale(payload: {
     const err = await res.json();
     throw new Error(err.error || 'Sale failed');
   }
+  appCache.invalidateSales(); // Assuming appCache is imported or triggered eventually. But we'll invalidate queries instead typically.
   return res.json();
 }

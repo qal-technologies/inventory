@@ -12,7 +12,6 @@ import { useEffect, useState } from 'react';
 const tabs = [
   { href: '/staff/home', icon: Home, label: 'Home' },
   { href: '/staff/cart', icon: ShoppingCart, label: 'Cart' },
-  /* QUOTA OPTIMIZATION: Notifications removed entirely for staff */
   { href: '/staff/profile', icon: UserCircle, label: 'Profile' },
 ];
 
@@ -42,6 +41,14 @@ export default function StaffLayout({
     if (!isLogin) {
       if (!user) {
         router.replace('/login');
+      } else {
+        // Verify single-device constraint
+        fetch('/api/auth/verify-device').then(res => {
+          if (!res.ok) {
+            useSessionStore.getState().clearSession();
+            router.replace('/login');
+          }
+        });
       }
     }
   }, [user, isLogin, router, _hasHydrated]);

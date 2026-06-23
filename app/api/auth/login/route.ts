@@ -15,11 +15,18 @@ export async function POST(req: NextRequest) {
     }
 
     const data = userDoc.data()!;
+    const deviceToken = crypto.randomUUID();
+
+    await adminDb.collection('users').doc(decoded.uid).update({
+      deviceToken,
+    });
+
     await setSession({
       uid: decoded.uid,
       role: data.role,
       name: data.name,
       email: data.email,
+      deviceToken,
     });
 
     return NextResponse.json({ role: data.role, name: data.name });

@@ -245,12 +245,12 @@ export default function StaffHomePage() {
       }
 
       {/* Load More Button - Only show when not searching */}
-      {!search.trim() && productsPage && productsPage.length >= limitCount && (
+      {!search.trim() && filtered.length >= limitCount && (
         <div
           style={{
             display: 'flex',
             justifyContent: 'center',
-            marginTop: 20,
+            marginTop: 30,
             marginBottom: 80,
           }}>
           <button

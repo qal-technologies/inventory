@@ -93,7 +93,7 @@ export default function AdminNotificationsPage() {
 
   const deleteNotif = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch('api/notifications', {
+      const res = await fetch('/api/notifications', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
@@ -272,11 +272,13 @@ export default function AdminNotificationsPage() {
           style={{
             display: 'flex',
             justifyContent: 'center',
-            marginTop: 20,
+            marginTop: 25,
           }}>
           <button
             className='btn-primary'
-            onClick={() => setLastId(allNotifications[allNotifications.length - 1]?.id)}
+            onClick={() =>
+              setLastId(allNotifications[allNotifications.length - 1]?.id)
+            }
             disabled={isFetching}
             style={{
               width: 'auto',

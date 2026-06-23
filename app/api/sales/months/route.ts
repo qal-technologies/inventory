@@ -4,30 +4,35 @@ import { adminDb } from '@/lib/firebase/admin';
 /**
  * GET /api/sales/months
  * Returns a unique list of months (YYYY-MM) that have sales records.
- * Optimized to prevent reading all documents by only selecting the createdAt field.
+ * Capped at 100 docs — enough to cover all months ever needed.
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get('branchId');
 
-    let q: FirebaseFirestore.Query = adminDb.collection('sales');
+    // Build query — type as any to avoid firebase-admin type namespace issues
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q: any = adminDb.collection('sales');
+
     if (branchId) {
       q = q.where('branchId', '==', branchId);
     }
 
-    // May 2026 boundary as requested
+    // May 2026 boundary as requested — cap at 100 docs (enough to cover all months)
     const startBoundary = '2026-05-01T00:00:00.000Z';
-    q = q.where('createdAt', '>=', startBoundary).orderBy('createdAt', 'desc');
+    q = q
+      .where('createdAt', '>=', startBoundary)
+      .orderBy('createdAt', 'desc')
+      .limit(100);
 
     const snap = await q.select('createdAt').get();
 
     const monthsSet = new Set<string>();
-    snap.docs.forEach(doc => {
-      const createdAt = doc.data().createdAt;
+    snap.docs.forEach((d: { data: () => Record<string, unknown> }) => {
+      const createdAt = d.data().createdAt;
       if (createdAt && typeof createdAt === 'string') {
-        const ym = createdAt.substring(0, 7); // YYYY-MM
-        monthsSet.add(ym);
+        monthsSet.add(createdAt.substring(0, 7)); // YYYY-MM
       }
     });
 

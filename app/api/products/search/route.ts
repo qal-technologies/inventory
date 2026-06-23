@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     // Client-side filtering (after database fetch)
     // In production, consider using Algolia or similar for true full-text search
     const results = snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .map((doc:any) => ({ id: doc.id, ...doc.data() }))
       .filter((product: any) => {
         const name = (product.name || '').toLowerCase();
         const category = (product.category || '').toLowerCase();

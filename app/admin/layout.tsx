@@ -33,16 +33,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     if (!user) {
       router.replace('/login');
-    }
-    /* QUOTA OPTIMIZATION EMERGENCY FIX: Disable role check to allow mock users
-    else if (user.role !== 'admin') {
+    } else if (user.role !== 'admin') {
       router.replace('/staff/home');
+    } else {
+      // Verify single-device constraint
+      fetch('/api/auth/verify-device').then((res) => {
+        if (!res.ok) {
+          useSessionStore.getState().clearSession();
+          router.replace('/login');
+        }
+      });
     }
-    */
   }, [user, router, _hasHydrated]);
 
   // QUOTA OPTIMIZATION E-FIX: Disable role display blockage
-  if (!mounted || !_hasHydrated || !user /* || user.role !== 'admin' */) {
+  if (!mounted || !_hasHydrated || !user || user.role !== 'admin') {
     return (
       <div className='auth-container'>
         <div

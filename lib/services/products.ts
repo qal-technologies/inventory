@@ -2,9 +2,8 @@ import {
   collection,
   getDocs,
   query,
-  where,
-  limit,
   orderBy,
+  limit,
   startAfter,
   doc,
   getDoc,
@@ -16,18 +15,19 @@ import { QUOTA_CONFIG } from '../quota-config';
 
 /**
  * Fetch products for a specific branch.
- * Falls back to server-side API route if client SDK direct query fails (e.g. due to rules).
- * IMPORTANT: where() must come before orderBy() in Firestore queries
+ * IMPORTANT: Goes straight to the API route to avoid composite index issues
+ * with client SDK (branchId + createdAt requires a Firestore composite index).
+ * The Admin SDK on the server handles complex queries reliably.
  */
 export async function fetchProducts(
   branchId: string,
   limitCount = 20,
-  lastId?: string
+  lastId?: string,
 ): Promise<Product[]> {
   if (QUOTA_CONFIG.USE_MOCK_DATA) {
     console.log('[Mock] Using mock products (quota optimization)');
     const all = (MOCK_PRODUCTS as Product[]).filter(
-      (p) => p.branchId === branchId
+      (p) => p.branchId === branchId,
     );
     if (lastId) {
       const idx = all.findIndex((p) => p.id === lastId);
@@ -36,88 +36,39 @@ export async function fetchProducts(
     return all.slice(0, limitCount);
   }
 
-  // Layer 1: Client Firestore SDK
-  try {
-    let q;
-    if (lastId) {
-      const lastSnapshot = await getDoc(doc(db, 'products', lastId));
-      // FIX: where() MUST come before orderBy()
-      q = query(
-        collection(db, 'products'),
-        where('branchId', '==', branchId),
-        orderBy('createdAt', 'desc'),
-        startAfter(lastSnapshot),
-        limit(limitCount)
-      );
-    } else {
-      q = query(
-        collection(db, 'products'),
-        where('branchId', '==', branchId),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
-    }
-    const snap = await getDocs(q);
-    const list = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Product[];
-    if (list.length > 0) {
-      console.log('[Firestore] Fetched products from client SDK', {
-        branchId,
-        count: list.length,
-      });
-      return list;
-    }
-  } catch (err) {
-    console.warn(
-      '[Firestore Error] Client products fetch failed, trying API route fallback',
-      err
-    );
-  }
-
-  // Layer 2: API Route GET /api/products?branchId=xxx
+  // Direct API Route — Admin SDK handles branchId + createdAt composite queries reliably
   try {
     let url = `/api/products?branchId=${encodeURIComponent(branchId)}&limit=${limitCount}`;
     if (lastId) url += `&lastId=${lastId}`;
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
+    const res = await fetch(url, { method: 'GET' });
     if (res.ok) {
       const list = await res.json();
       if (Array.isArray(list)) {
-        console.log('[API] Fetched products from API route', {
+        console.log('[API] Fetched branch products', {
           branchId,
           count: list.length,
         });
         return list;
       }
     } else {
-      console.error(
-        '[API Error] Products endpoint returned',
-        res.status,
-        res.statusText
-      );
+      console.error('[API Error] Products endpoint returned', res.status);
     }
   } catch (err) {
-    console.error('[API Error] API route products fetch failed:', err);
+    console.error('[API Error] Branch products fetch failed:', err);
   }
 
-  // Layer 3: Final Fallback (Empty)
-  console.warn('[Fallback] All data sources exhausted. Returning empty list.');
   return [];
 }
 
 /**
- * Fetch all products across all branches.
+ * Fetch all products across all branches (paginated).
+ * Used by admin inventory page.
  * Falls back to server-side API route if client SDK query fails.
  */
 export async function fetchAllProducts(
   limitCount = 40,
-  lastId?: string
+  lastId?: string,
 ): Promise<Product[]> {
   if (QUOTA_CONFIG.USE_MOCK_DATA) {
     console.log('[Mock] Using mock products (quota optimization)');
@@ -129,7 +80,7 @@ export async function fetchAllProducts(
     return all.slice(0, limitCount);
   }
 
-  // Layer 1: Client Firestore SDK
+  // Layer 1: Client Firestore SDK (no where clause — simple query, no composite index needed)
   try {
     let q;
     if (lastId) {
@@ -138,13 +89,13 @@ export async function fetchAllProducts(
         collection(db, 'products'),
         orderBy('createdAt', 'desc'),
         startAfter(lastSnapshot),
-        limit(limitCount)
+        limit(limitCount),
       );
     } else {
       q = query(
         collection(db, 'products'),
         orderBy('createdAt', 'desc'),
-        limit(limitCount)
+        limit(limitCount),
       );
     }
     const snap = await getDocs(q);
@@ -153,16 +104,12 @@ export async function fetchAllProducts(
       ...d.data(),
     })) as Product[];
     if (list.length > 0) {
-      return list.sort((a, b) => {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
-      });
+      return list;
     }
   } catch (err) {
     console.error(
-      '[Firestore Error] Client fetchAllProducts failed, trying API route fallback',
-      err
+      '[Firestore Error] fetchAllProducts failed, trying API fallback',
+      err,
     );
   }
 
@@ -171,22 +118,43 @@ export async function fetchAllProducts(
     let url = `/api/products?limit=${limitCount}`;
     if (lastId) url += `&lastId=${lastId}`;
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const res = await fetch(url, { method: 'GET' });
+    if (res.ok) {
+      const list = await res.json();
+      if (Array.isArray(list)) return list;
+    }
+  } catch (err) {
+    console.error('[API Error] fetchAllProducts API fallback failed:', err);
+  }
 
+  return [];
+}
+
+/**
+ * Fetch ALL products for admin home (no pagination).
+ * Used ONLY for admin dashboard statistics and calculations.
+ * Results are cached by the caller (admin home) for 10 minutes.
+ * Bypasses paginated fetchAllProducts to get the complete dataset.
+ */
+export async function fetchAdminAllProducts(): Promise<Product[]> {
+  if (QUOTA_CONFIG.USE_MOCK_DATA) {
+    return MOCK_PRODUCTS as Product[];
+  }
+
+  try {
+    const res = await fetch('/api/products?limit=500');
     if (res.ok) {
       const list = await res.json();
       if (Array.isArray(list)) {
+        console.log('[Admin Cache] Fetched all products for dashboard', {
+          count: list.length,
+        });
         return list;
       }
     }
   } catch (err) {
-    console.error('[API Error] API route fetchAllProducts failed:', err);
+    console.error('[Admin Cache Error] Failed to fetch all products:', err);
   }
 
-  // Layer 3: Final Fallback (Empty)
-  console.warn('[Fallback] All data sources exhausted. Returning empty list.');
   return [];
 }

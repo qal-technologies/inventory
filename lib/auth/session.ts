@@ -8,6 +8,7 @@ export interface SessionPayload {
   role: 'admin' | 'staff';
   name: string;
   email: string;
+  deviceToken?: string;
 }
 
 export interface BranchSession {

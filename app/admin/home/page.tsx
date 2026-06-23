@@ -1,8 +1,7 @@
 'use client';
 import { useMemo } from 'react';
-import { useSales } from '@/lib/hooks/useSales';
-import { useQuery } from '@tanstack/react-query';
-import { fetchSaleMonths } from '@/lib/services/sales';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchSaleMonths, fetchAdminAllSales } from '@/lib/services/sales';
 import { motion } from 'framer-motion';
 import {
   TrendingUp,
@@ -10,33 +9,47 @@ import {
   ShoppingBag,
   Package,
   Award,
-  Filter,
+  RefreshCw,
 } from 'lucide-react';
 import type { Product } from '@/lib/firebase/converters';
-import { fetchAllProducts } from '@/lib/services/products';
+import { fetchAdminAllProducts } from '@/lib/services/products';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useSessionStore } from '@/store/sessionStore';
-import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
+import { formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
+import { toast } from 'react-hot-toast';
 
 export default function AdminHomePage() {
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
+  const queryClient = useQueryClient();
 
-  // Single source of truth — no local mirror state
   const { branchId, month, setBranch, setMonth } = useSessionStore();
 
-  const { data: salesResult, isLoading: salesLoading } = useSales(branchId || undefined, 20, undefined, month || undefined);
-
-  // Fetch products (limited) for summary stats
-  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
-    queryKey: ['admin-products', 20],
-    queryFn: () => fetchAllProducts(20),
-    staleTime: 600_000,
-  });
-
-  // Fetch branches
   const { data: branches } = useBranches();
 
-  // Fetch available months with sales
+  // Fetch ALL sales without limits. Cached for 10 minutes.
+  const {
+    data: allSales,
+    isLoading: salesLoading,
+    isFetching: salesFetching,
+  } = useQuery({
+    queryKey: ['admin-all-sales'],
+    queryFn: fetchAdminAllSales,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch ALL products without limits. Cached for 10 minutes.
+  const {
+    data: allProducts,
+    isLoading: productsLoading,
+    isFetching: productsFetching,
+  } = useQuery({
+    queryKey: ['admin-all-products'],
+    queryFn: fetchAdminAllProducts,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   const { data: availableMonths } = useQuery({
     queryKey: ['sale-months', branchId],
     queryFn: () => fetchSaleMonths(branchId || undefined),
@@ -49,16 +62,34 @@ export default function AdminHomePage() {
     }));
   }, [availableMonths]);
 
+  // Handle Refresh
+  const handleRefresh = async () => {
+    const toastId = toast.loading('Refreshing dashboard data...');
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin-all-sales'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin-all-products'] }),
+    ]);
+    toast.success('Data is up to date', { id: toastId });
+  };
+
   // ── Filtering ─────────────────────────────────────────────────────────────────
   const filteredSales = useMemo(() => {
-    return salesResult?.sales || [];
-  }, [salesResult?.sales]);
+    if (!allSales) return [];
+    let _sales = allSales;
+    if (branchId) {
+      _sales = _sales.filter((s) => s.branchId === branchId);
+    }
+    if (month) {
+      _sales = _sales.filter((s) => s.createdAt.startsWith(month));
+    }
+    return _sales;
+  }, [allSales, branchId, month]);
 
   const filteredProducts = useMemo(() => {
-    if (!products) return [];
-    if (!branchId) return products;
-    return products.filter((p) => p.branchId === branchId);
-  }, [products, branchId]);
+    if (!allProducts) return [];
+    if (!branchId) return allProducts;
+    return allProducts.filter((p) => p.branchId === branchId);
+  }, [allProducts, branchId]);
 
   // ── Compute stats ─────────────────────────────────────────────────────────────
   const today = new Date().toDateString();
@@ -71,9 +102,23 @@ export default function AdminHomePage() {
   const todayRevenue = todaySales.reduce((s, x) => s + (x.total || 0), 0);
   const todayProfit = todaySales.reduce((s, x) => s + (x.profit || 0), 0);
 
-  const { totalRevenue, totalProfit, totalDiscount, count: totalSalesCount } = useMemo(() => {
-    return salesResult?.stats || { totalRevenue: 0, totalProfit: 0, totalDiscount: 0, count: 0 };
-  }, [salesResult?.stats]);
+  const {
+    totalRevenue,
+    totalProfit,
+    totalDiscount,
+    count: totalSalesCount,
+  } = useMemo(() => {
+    return filteredSales.reduce(
+      (acc, s) => {
+        acc.totalRevenue += s.total || 0;
+        acc.totalProfit += s.profit || 0;
+        acc.totalDiscount += s.discount || 0;
+        acc.count += 1;
+        return acc;
+      },
+      { totalRevenue: 0, totalProfit: 0, totalDiscount: 0, count: 0 },
+    );
+  }, [filteredSales]);
 
   const avgProfitMargin =
     filteredSales.length > 0 ?
@@ -104,8 +149,6 @@ export default function AdminHomePage() {
       .slice(0, 5);
   }, [filteredSales]);
 
-  // QUOTA OPTIMIZATION: Restock alerts removed from dashboard to prevent full product scans on every load.
-
   const stats = [
     {
       label: "Today's Revenue",
@@ -133,17 +176,9 @@ export default function AdminHomePage() {
     },
   ];
 
-
-  // QUOTA OPTIMIZATION: Notification fetching removed from layout/header to prevent polling on mount.
-
   const recentSales = filteredSales.slice(0, 5);
   const isLoading = salesLoading || productsLoading;
-
-  const getBranchName = (id?: string) => {
-    if (!id) return 'General';
-    const b = branches?.find((b) => b.id === id);
-    return b?.name || id;
-  };
+  const isFetching = salesFetching || productsFetching;
 
   return (
     <div>
@@ -163,8 +198,6 @@ export default function AdminHomePage() {
           </p>
         </div>
 
-        {/* Filter Toolbar (Bell icon removed for quota optimization) */}
-
         <div
           style={{
             display: 'flex',
@@ -173,7 +206,25 @@ export default function AdminHomePage() {
             overflowX: 'auto',
             scrollBehavior: 'smooth',
           }}>
-          {/* Branch filter — value is always the exact store value, "" means All */}
+          <button
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className='btn-outline'
+            style={{
+              height: 40,
+              padding: '0 12px',
+              display: 'flex',
+              gap: 6,
+              alignItems: 'center',
+            }}>
+            <RefreshCw
+              size={16}
+              className={isFetching ? 'spin' : ''}
+            />
+            Refresh
+          </button>
+
+          {/* Branch filter */}
           <select
             className='input-base'
             style={{
@@ -198,7 +249,7 @@ export default function AdminHomePage() {
             ))}
           </select>
 
-          {/* Month filter — value is always the "YYYY-MM" store value, "" means All */}
+          {/* Month filter */}
           <select
             className='input-base'
             style={{
@@ -273,12 +324,10 @@ export default function AdminHomePage() {
           gap: 20,
           marginBottom: 40,
         }}>
-        {/* Row 1: Best Sellers & Stock Alerts */}
+        {/* Row 1: Best Sellers */}
         <div
           style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}
           className='form-grid-2'>
-          {/* Best Sellers */}
-
           {!isLoading && bestSellers.length > 0 && (
             <div
               className='glass'
@@ -296,61 +345,53 @@ export default function AdminHomePage() {
                 />{' '}
                 Best Selling Products
               </h3>
-              {isLoading ?
-                <div
-                  className='skeleton'
-                  style={{ height: 180 }}
-                />
-              : <div
-                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {bestSellers.map((item, index) => (
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {bestSellers.map((item, index) => (
+                  <div
+                    key={item.name}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}>
                     <div
-                      key={item.name}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
+                        gap: 8,
                       }}>
-                      <div
+                      <span
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
+                          fontWeight: 800,
+                          color: 'var(--accent-deep)',
+                          width: 20,
                         }}>
-                        <span
-                          style={{
-                            fontWeight: 800,
-                            color: 'var(--accent-deep)',
-                            width: 20,
-                          }}>
-                          #{index + 1}
-                        </span>
-                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                          {item.name}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 16,
-                          fontSize: '0.85rem',
-                        }}>
-                        <span style={{ color: 'var(--text-muted)' }}>
-                          {item.qty} sold
-                        </span>
-                        <span style={{ fontWeight: 700 }}>
-                          {currency}
-                          {item.revenue.toLocaleString()}
-                        </span>
-                      </div>
+                        #{index + 1}
+                      </span>
+                      <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                        {item.name}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              }
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 16,
+                        fontSize: '0.85rem',
+                      }}>
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {item.qty} sold
+                      </span>
+                      <span style={{ fontWeight: 700 }}>
+                        {currency}
+                        {item.revenue.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-
-          {/* QUOTA OPTIMIZATION: Low Stock Alerts section completely removed as agreed */}
         </div>
 
         {/* Row 2: Recent Sales & Business Summary */}
@@ -375,70 +416,58 @@ export default function AdminHomePage() {
                 />{' '}
                 Recent Sales
               </h3>
-              {isLoading ?
-                <div
-                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className='skeleton'
-                      style={{ height: 48 }}
-                    />
-                  ))}
-                </div>
-              : <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {recentSales.map((sale, i) => (
-                    <motion.div
-                      key={sale.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.04 }}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '12px 0',
-                        borderBottom:
-                          i < recentSales.length - 1 ?
-                            '1px solid var(--border)'
-                          : 'none',
-                      }}>
-                      <div>
-                        <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                          {sale.items.map((it) => it.name).join(', ')}
-                        </p>
-                        <p
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-muted)',
-                          }}>
-                          {sale.branchName} ·{' '}
-                          {sale.items.reduce((sum, it) => sum + it.qty, 0)}{' '}
-                          item(s)
-                        </p>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <p
-                          style={{
-                            fontWeight: 700,
-                            color: 'var(--accent-deep)',
-                          }}>
-                          {currency}
-                          {(sale.total || 0).toLocaleString()}
-                        </p>
-                        <p
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--success)',
-                          }}>
-                          +{currency}
-                          {(sale.profit || 0).toLocaleString()}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              }
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {recentSales.map((sale, i) => (
+                  <motion.div
+                    key={sale.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 0',
+                      borderBottom:
+                        i < recentSales.length - 1 ?
+                          '1px solid var(--border)'
+                        : 'none',
+                    }}>
+                    <div>
+                      <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                        {sale.items.map((it) => it.name).join(', ')}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-muted)',
+                        }}>
+                        {sale.branchName} ·{' '}
+                        {sale.items.reduce((sum, it) => sum + it.qty, 0)}{' '}
+                        item(s)
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <p
+                        style={{
+                          fontWeight: 700,
+                          color: 'var(--accent-deep)',
+                        }}>
+                        {currency}
+                        {(sale.total || 0).toLocaleString()}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--success)',
+                        }}>
+                        +{currency}
+                        {(sale.profit || 0).toLocaleString()}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -491,6 +520,15 @@ export default function AdminHomePage() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        .spin {
+          animation: spinner 1s linear infinite;
+        }
+        @keyframes spinner { 
+          to { transform: rotate(360deg); } 
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import type { Branch } from '@/lib/firebase/converters';
 import { QUOTA_CONFIG } from '../quota-config';
@@ -20,7 +20,11 @@ export async function fetchBranches(): Promise<Branch[]> {
 
   // Layer 1: Try Client-side Firestore SDK
   try {
-    const q = query(collection(db, 'branches'), orderBy('name', 'asc'));
+    const q = query(
+      collection(db, 'branches'),
+      orderBy('name', 'asc'),
+      limit(20),
+    );
     const snap = await getDocs(q);
     const list = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }) as Branch)

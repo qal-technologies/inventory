@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       throw new ValidationError('limit must be between 1 and 100');
     }
 
-    let q: FirebaseFirestore.Query = adminDb.collection('products');
+    let q = adminDb.collection('products');
 
     if (branchId) {
       q = q.where('branchId', '==', branchId);
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
         if (lastDoc.exists) qWithSort = qWithSort.startAfter(lastDoc);
       }
       const snap = await qWithSort.get();
-      products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      products = snap.docs.map((d:any) => ({ id: d.id, ...d.data() }));
     } catch (err: any) {
       // Fallback: If orderBy fails (e.g. missing index), fetch more and sort in-memory
       console.warn('[Products API] OrderBy failed, falling back to manual sort', err.message);
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         if (lastDoc.exists) qFallback = qFallback.startAfter(lastDoc);
       }
       const snap = await qFallback.get();
-      products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      products = snap.docs.map((d:any) => ({ id: d.id, ...d.data() }));
       products.sort((a: any, b: any) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
