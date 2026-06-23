@@ -1,30 +1,43 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSessionStore } from '@/store/sessionStore';
 import { useProducts } from '@/lib/hooks/useProducts';
+import { useProductSearch } from '@/lib/hooks/useProductSearch';
 import ProductCard from '@/components/shared/ProductCard';
 import type { Product } from '@/lib/firebase/converters';
 import SkeletonCard from '@/components/shared/SkeletonCard';
 import { motion } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { Search, AlertCircle } from 'lucide-react';
 
 export default function StaffHomePage() {
   const branch = useSessionStore((s) => s.branch);
   const [limitCount] = useState(100);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [search, setSearch] = useState('');
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const {
-    data: productsPage,
-    isLoading,
-    isFetching,
-  } = useProducts(branch?.branchId || 'calabar', limitCount, lastId);
+  // Fetch initial/paginated products
+  const { data: productsPage, isLoading, isFetching } = useProducts(
+    branch?.branchId || 'calabar',
+    limitCount,
+    lastId
+  );
 
+  // Server-side search (only when search is active)
+  const { data: searchResults, isLoading: isSearching } = useProductSearch(
+    branch?.branchId || 'calabar',
+    search,
+    search.trim().length > 0
+  );
+
+  // Accumulate products from pagination
   useEffect(() => {
     if (productsPage) {
       setAllProducts((prev) => {
         const existingIds = new Set(prev.map((p) => p.id));
         const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
+        if (newProducts.length === 0) return prev;
         return [...prev, ...newProducts];
       });
     }
@@ -34,29 +47,46 @@ export default function StaffHomePage() {
   useEffect(() => {
     setAllProducts([]);
     setLastId(undefined);
+    setSearch('');
   }, [branch?.branchId]);
 
-  const [search, setSearch] = useState('');
-
+  // Filter for display (use search results if searching, otherwise all products)
   const filtered = useMemo(() => {
-    const inStock = allProducts.filter((p: Product) => p.stock > 0);
-    if (!search.trim()) return inStock;
-    const q = search.toLowerCase();
-    return inStock.filter(
-      (p: Product) =>
-        p.name.toLowerCase().includes(q) ||
-        p?.category?.toLowerCase().includes(q) ||
-        p?.description?.toLowerCase().includes(q),
-    );
-  }, [allProducts, search]);
+    // If search is active, use server-side search results
+    if (search.trim().length > 0) {
+      return (searchResults || []).filter((p: Product) => p.stock > 0);
+    }
+
+    // Otherwise use loaded products
+    return allProducts.filter((p: Product) => p.stock > 0);
+  }, [allProducts, searchResults, search]);
+
+  // Handle load more
+  const handleLoadMore = useCallback(() => {
+    if (!isLoadingMore && allProducts.length > 0) {
+      setIsLoadingMore(true);
+      setLastId(allProducts[allProducts.length - 1]?.id);
+    }
+  }, [allProducts, isLoadingMore]);
+
+  // Update loading state when fetching completes
+  useEffect(() => {
+    if (!isFetching) {
+      setIsLoadingMore(false);
+    }
+  }, [isFetching]);
+
+  const isLoading_search = search.trim().length > 0 && isSearching;
+  const showSkeleton = (isLoading || isLoading_search) && filtered.length === 0;
 
   return (
     <motion.div
       style={{ padding: '0px 10px 0', position: 'relative' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}>
-      {/* Search */}
+      transition={{ duration: 0.3 }}
+    >
+      {/* Search Bar */}
       <div
         className='search-wrap'
         style={{
@@ -64,29 +94,40 @@ export default function StaffHomePage() {
           position: 'sticky',
           top: 10,
           zIndex: 999,
-        }}>
-        <Search
-          size={18}
-          color='var(--text-light)'
-        />
+        }}
+      >
+        <Search size={18} color='var(--text-light)' />
         <input
-          placeholder='Search products...'
+          placeholder='Search products by name, category, or description...'
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            // Don't reset pagination when searching
+          }}
+          disabled={isLoading_search}
+          aria-label='Search products'
         />
+        {isLoading_search && (
+          <div
+            style={{
+              marginLeft: '8px',
+              fontSize: '0.8rem',
+              color: 'var(--text-muted)',
+            }}
+          >
+            Searching...
+          </div>
+        )}
       </div>
 
-      {/* Products grid */}
-      {isLoading && allProducts.length === 0 ?
+      {/* Loading Skeleton */}
+      {showSkeleton ? (
         <div className='products-grid'>
           {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonCard
-              key={i}
-              index={i}
-            />
+            <SkeletonCard key={i} index={i} />
           ))}
         </div>
-      : filtered.length === 0 ?
+      ) : filtered.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -100,48 +141,93 @@ export default function StaffHomePage() {
             height: '50%',
             display: 'grid',
             placeContent: 'center',
-            justifyContent: 'center',
-          }}>
+          }}
+        >
           <p style={{ fontSize: '2rem', marginBottom: 8 }}>🛍️</p>
           <p>
-            {search ?
-              'No products match your search'
-            : 'No products in this branch yet'}
+            {search
+              ? `No products match "${search}"`
+              : 'No products in stock at this branch'}
           </p>
+          {search && allProducts.length > 0 && (
+            <p
+              style={{
+                fontSize: '0.85rem',
+                marginTop: 8,
+                color: 'var(--text-light)',
+              }}
+            >
+              Try searching for different keywords
+            </p>
+          )}
         </motion.div>
-      : <div className='products-grid'>
+      ) : (
+        <div className='products-grid'>
           {filtered.map((product, i) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              index={i}
-            />
+            <ProductCard key={product.id} product={product} index={i} />
           ))}
         </div>
-      }
-
-      {/* QUOTA OPTIMIZATION: Simple append pagination */}
-      {productsPage && productsPage.length >= limitCount && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: 20,
-            marginBottom: 80,
-          }}>
-          <button
-            className='btn-primary'
-            onClick={() => setLastId(allProducts[allProducts.length - 1]?.id)}
-            disabled={isFetching}
-            style={{
-              width: 'auto',
-              padding: '0 24px',
-              opacity: isFetching ? 0.7 : 1,
-            }}>
-            {isFetching ? 'Loading...' : 'Load More Products'}
-          </button>
-        </div>
       )}
+
+      {/* Load More Button - Only show when not searching */}
+      {!search.trim() &&
+        productsPage &&
+        productsPage.length >= limitCount && (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              marginTop: 20,
+              marginBottom: 80,
+            }}
+          >
+            <button
+              className='btn-primary'
+              onClick={handleLoadMore}
+              disabled={isLoadingMore || isFetching}
+              style={{
+                width: 'auto',
+                padding: '0 24px',
+                opacity: isLoadingMore || isFetching ? 0.6 : 1,
+                cursor: isLoadingMore || isFetching ? 'not-allowed' : 'pointer',
+              }}
+              aria-busy={isLoadingMore}
+            >
+              {isLoadingMore ? 'Loading...' : 'Load More Products'}
+            </button>
+          </div>
+        )}
+
+      {/* No real-time data error state */}
+      {!isLoading &&
+        !isFetching &&
+        allProducts.length === 0 &&
+        !search && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            style={{
+              marginTop: 24,
+              padding: '16px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(255, 193, 7, 0.1)',
+              border: '1px solid rgba(255, 193, 7, 0.3)',
+              color: 'var(--text-light)',
+              fontSize: '0.9rem',
+              display: 'flex',
+              gap: '12px',
+              alignItems: 'flex-start',
+            }}
+          >
+            <AlertCircle size={20} style={{ marginTop: '2px', flexShrink: 0 }} />
+            <div>
+              <strong>No products found</strong>
+              <p style={{ marginTop: '4px', opacity: 0.8 }}>
+                This branch has no products in inventory yet. Contact your administrator to add products.
+              </p>
+            </div>
+          </motion.div>
+        )}
     </motion.div>
   );
 }
