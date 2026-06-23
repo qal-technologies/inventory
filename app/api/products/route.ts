@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get('branchId');
-    const limitCount = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // Cap at 100
+    const limitCount = Math.min(
+      parseInt(searchParams.get('limit') || '20'),
+      100,
+    ); // Cap at 100
     const lastId = searchParams.get('lastId');
 
     // Validation
@@ -26,7 +29,8 @@ export async function GET(req: NextRequest) {
       throw new ValidationError('limit must be between 1 and 100');
     }
 
-    let q = adminDb.collection('products');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q: any = adminDb.collection('products');
 
     if (branchId) {
       q = q.where('branchId', '==', branchId);
@@ -41,17 +45,20 @@ export async function GET(req: NextRequest) {
         if (lastDoc.exists) qWithSort = qWithSort.startAfter(lastDoc);
       }
       const snap = await qWithSort.get();
-      products = snap.docs.map((d:any) => ({ id: d.id, ...d.data() }));
+      products = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     } catch (err: any) {
       // Fallback: If orderBy fails (e.g. missing index), fetch more and sort in-memory
-      console.warn('[Products API] OrderBy failed, falling back to manual sort', err.message);
+      console.warn(
+        '[Products API] OrderBy failed, falling back to manual sort',
+        err.message,
+      );
       let qFallback = q.limit(limitCount * 5); // Fetch more for better sorting
       if (lastId) {
         const lastDoc = await adminDb.collection('products').doc(lastId).get();
         if (lastDoc.exists) qFallback = qFallback.startAfter(lastDoc);
       }
       const snap = await qFallback.get();
-      products = snap.docs.map((d:any) => ({ id: d.id, ...d.data() }));
+      products = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
       products.sort((a: any, b: any) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -59,7 +66,6 @@ export async function GET(req: NextRequest) {
       });
       products = products.slice(0, limitCount);
     }
-
 
     console.log('[Products API] Fetched products', {
       branchId: branchId || 'all',

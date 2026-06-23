@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
     const limitCount = parseInt(searchParams.get('limit') || '20');
     const lastId = searchParams.get('lastId');
 
-    let baseQuery: FirebaseFirestore.Query = adminDb.collection('sales');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let baseQuery: any = adminDb.collection('sales');
 
     if (branchId) {
       baseQuery = baseQuery.where('branchId', '==', branchId);
@@ -24,7 +25,9 @@ export async function GET(req: NextRequest) {
       nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
       const end = nextMonthDate.toISOString();
 
-      baseQuery = baseQuery.where('createdAt', '>=', start).where('createdAt', '<', end);
+      baseQuery = baseQuery
+        .where('createdAt', '>=', start)
+        .where('createdAt', '<', end);
     }
 
     // Clone for stats (without limit/pagination)
@@ -40,16 +43,19 @@ export async function GET(req: NextRequest) {
         if (lastDoc.exists) qWithSort = qWithSort.startAfter(lastDoc);
       }
       const snap = await qWithSort.get();
-      sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      sales = snap.docs.map((d:any) => ({ id: d.id, ...d.data() }));
     } catch (err: any) {
-      console.warn('[Sales API] OrderBy failed, falling back to manual sort', err.message);
+      console.warn(
+        '[Sales API] OrderBy failed, falling back to manual sort',
+        err.message,
+      );
       let qFallback = baseQuery.limit(limitCount * 5);
       if (lastId) {
         const lastDoc = await adminDb.collection('sales').doc(lastId).get();
         if (lastDoc.exists) qFallback = qFallback.startAfter(lastDoc);
       }
       const snap = await qFallback.get();
-      sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      sales = snap.docs.map((d:any) => ({ id: d.id, ...d.data() }));
       sales.sort((a: any, b: any) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -61,19 +67,22 @@ export async function GET(req: NextRequest) {
     const statsSnap = await statsQuery.get();
 
     // Aggregated stats
-    const stats = statsSnap.docs.reduce((acc, doc) => {
-      const data = doc.data();
-      acc.totalRevenue += data.total || 0;
-      acc.totalProfit += data.profit || 0;
-      acc.totalDiscount += data.discount || 0;
-      acc.count += 1;
-      return acc;
-    }, { totalRevenue: 0, totalProfit: 0, totalDiscount: 0, count: 0 });
+    const stats = statsSnap.docs.reduce(
+      (acc:any, doc:any) => {
+        const data = doc.data();
+        acc.totalRevenue += data.total || 0;
+        acc.totalProfit += data.profit || 0;
+        acc.totalDiscount += data.discount || 0;
+        acc.count += 1;
+        return acc;
+      },
+      { totalRevenue: 0, totalProfit: 0, totalDiscount: 0, count: 0 },
+    );
 
     return NextResponse.json({
       sales,
       stats,
-      hasMore: sales.length === limitCount
+      hasMore: sales.length === limitCount,
     });
   } catch (err) {
     console.error(err);

@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
     const limitCount = parseInt(searchParams.get('limit') || '20');
     const lastId = searchParams.get('lastId');
 
-    let q = adminDb.collection('notifications');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q: any = adminDb.collection('notifications');
 
     if (branchId) {
       q = q.where('branchId', '==', branchId);
