@@ -11,7 +11,7 @@ import { Search, AlertCircle, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 export default function StaffHomePage() {
-  const { branchId } = useSessionStore();
+  const { branchId, branchName } = useSessionStore();
   const [limitCount] = useState(100);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -19,17 +19,17 @@ export default function StaffHomePage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Fetch initial/paginated products
-  const { data: productsPage, isLoading, isFetching } = useProducts(
-    branchId || undefined,
-    limitCount,
-    lastId
-  );
+  const {
+    data: productsPage,
+    isLoading,
+    isFetching,
+  } = useProducts(branchId || undefined, limitCount, lastId);
 
   // Server-side search (only when search is active)
   const { data: searchResults, isLoading: isSearching } = useProductSearch(
     branchId || undefined,
     search,
-    search.trim().length > 0
+    search.trim().length > 0,
   );
 
   // Accumulate products from pagination
@@ -55,11 +55,12 @@ export default function StaffHomePage() {
   const filtered = useMemo(() => {
     // If search is active, use server-side search results
     if (search.trim().length > 0) {
-      return (searchResults || []); // Removed p.stock > 0 filter to show out of stock too if searched
+      return searchResults?.filter((p) => p.stock > 0) || []; 
     }
 
     // Otherwise use loaded products
-    return allProducts; // Removed p.stock > 0 filter here as well
+    const stockedProducts = allProducts.filter((p) => p.stock > 0);
+    return stockedProducts; 
   }, [allProducts, searchResults, search]);
 
   // Handle load more
@@ -85,8 +86,7 @@ export default function StaffHomePage() {
       style={{ padding: '0px 10px 0', position: 'relative' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
+      transition={{ duration: 0.3 }}>
       {/* Search Bar */}
       <div
         className='search-wrap'
@@ -95,9 +95,11 @@ export default function StaffHomePage() {
           position: 'sticky',
           top: 10,
           zIndex: 999,
-        }}
-      >
-        <Search size={18} color='var(--text-light)' />
+        }}>
+        <Search
+          size={18}
+          color='var(--text-light)'
+        />
         <input
           placeholder='Search products by name, category, or description...'
           value={search}
@@ -114,21 +116,23 @@ export default function StaffHomePage() {
               marginLeft: '8px',
               fontSize: '0.8rem',
               color: 'var(--text-muted)',
-            }}
-          >
+            }}>
             Searching...
           </div>
         )}
       </div>
 
       {/* Loading Skeleton */}
-      {showSkeleton ? (
+      {showSkeleton ?
         <div className='products-grid'>
           {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonCard key={i} index={i} />
+            <SkeletonCard
+              key={i}
+              index={i}
+            />
           ))}
         </div>
-      ) : !branchId ? (
+      : !branchId && !branchName ?
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -145,8 +149,7 @@ export default function StaffHomePage() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: 16,
-          }}
-        >
+          }}>
           <div
             style={{
               width: 80,
@@ -156,21 +159,33 @@ export default function StaffHomePage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-            }}
-          >
-            <MapPin size={40} color="var(--warning)" />
+            }}>
+            <MapPin
+              size={40}
+              color='var(--warning)'
+            />
           </div>
           <div>
-            <h3 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>No Branch Selected</h3>
+            <h3 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>
+              No Branch Selected
+            </h3>
             <p>Please select a branch to view products and start selling.</p>
           </div>
-          <Link href="/staff/select-branch">
-            <button className="btn-primary" style={{ width: 'auto', padding: '0 24px' }}>
+          <Link href='/staff/select-branch'>
+            <button
+              className='btn-primary'
+              style={{
+                width: 'auto',
+                padding: '10px',
+                paddingInline: '20px',
+                border: 'none',
+                borderRadius: '18px',
+              }}>
               Select Branch
             </button>
           </Link>
         </motion.div>
-      ) : filtered.length === 0 ? (
+      : filtered.length === 0 ?
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -184,13 +199,12 @@ export default function StaffHomePage() {
             height: '50%',
             display: 'grid',
             placeContent: 'center',
-          }}
-        >
+          }}>
           <p style={{ fontSize: '2rem', marginBottom: 8 }}>🛍️</p>
           <p>
-            {search
-              ? `No products match "${search}"`
-              : 'No products found at this branch'}
+            {search ?
+              `No products match "${search}"`
+            : 'No products found at this branch'}
           </p>
           {search && allProducts.length > 0 && (
             <p
@@ -198,79 +212,81 @@ export default function StaffHomePage() {
                 fontSize: '0.85rem',
                 marginTop: 8,
                 color: 'var(--text-light)',
-              }}
-            >
+              }}>
               Try searching for different keywords
             </p>
           )}
         </motion.div>
-      ) : (
-        <div className='products-grid'>
+      : <div className='products-grid'>
           {filtered.map((product, i) => (
-            <ProductCard key={product.id} product={product} index={i} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              index={i}
+            />
           ))}
+        </div>
+      }
+
+      {/* Load More Button - Only show when not searching */}
+      {!search.trim() && productsPage && productsPage.length >= limitCount && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: 20,
+            marginBottom: 80,
+          }}>
+          <button
+            className='btn-primary'
+            onClick={handleLoadMore}
+            disabled={isLoadingMore || isFetching}
+            style={{
+              width: 'auto',
+              padding: '10px',
+              paddingInline: '20px',
+              border: 'none',
+              borderRadius: '18px',
+              opacity: isLoadingMore || isFetching ? 0.6 : 1,
+              cursor: isLoadingMore || isFetching ? 'not-allowed' : 'pointer',
+            }}
+            aria-busy={isLoadingMore}>
+            {isLoadingMore ? 'Loading...' : 'Load More Products'}
+          </button>
         </div>
       )}
 
-      {/* Load More Button - Only show when not searching */}
-      {!search.trim() &&
-        productsPage &&
-        productsPage.length >= limitCount && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              marginTop: 20,
-              marginBottom: 80,
-            }}
-          >
-            <button
-              className='btn-primary'
-              onClick={handleLoadMore}
-              disabled={isLoadingMore || isFetching}
-              style={{
-                width: 'auto',
-                padding: '0 24px',
-                opacity: isLoadingMore || isFetching ? 0.6 : 1,
-                cursor: isLoadingMore || isFetching ? 'not-allowed' : 'pointer',
-              }}
-              aria-busy={isLoadingMore}
-            >
-              {isLoadingMore ? 'Loading...' : 'Load More Products'}
-            </button>
-          </div>
-        )}
-
       {/* No real-time data error state */}
-      {!isLoading &&
-        !isFetching &&
-        allProducts.length === 0 &&
-        !search && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            style={{
-              marginTop: 24,
-              padding: '16px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(255, 193, 7, 0.1)',
-              border: '1px solid rgba(255, 193, 7, 0.3)',
-              color: 'var(--text-light)',
-              fontSize: '0.9rem',
-              display: 'flex',
-              gap: '12px',
-              alignItems: 'flex-start',
-            }}
-          >
-            <AlertCircle size={20} style={{ marginTop: '2px', flexShrink: 0 }} />
-            <div>
-              <strong>No products found</strong>
-              <p style={{ marginTop: '4px', opacity: 0.8 }}>
-                This branch has no products in inventory yet or they might be out of stock. Contact your administrator to add products or update stock.
-              </p>
-            </div>
-          </motion.div>
-        )}
+      {!isLoading && !isFetching && allProducts.length === 0 && !search && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{
+            marginTop: 24,
+            padding: '16px',
+            borderRadius: '8px',
+            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            border: '1px solid rgba(255, 193, 7, 0.3)',
+            color: 'var(--text-light)',
+            fontSize: '0.9rem',
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'flex-start',
+          }}>
+          <AlertCircle
+            size={20}
+            style={{ marginTop: '2px', flexShrink: 0 }}
+          />
+          <div>
+            <strong>No products found</strong>
+            <p style={{ marginTop: '4px', opacity: 0.8 }}>
+              This branch has no products in inventory yet or they might be out
+              of stock. Contact your administrator to add products or update
+              stock.
+            </p>
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
