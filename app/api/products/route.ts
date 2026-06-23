@@ -3,24 +3,32 @@ import { adminDb } from '@/lib/firebase/admin';
 import { getSession } from '@/lib/auth/session';
 import { triggerAdminPush } from '@/lib/push/triggerPush';
 
-// GET /api/products?branchId=xxx
+// GET /api/products?branchId=xxx&limit=20&lastId=xxx
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get('branchId');
+    const limitCount = parseInt(searchParams.get('limit') || '20');
+    const lastId = searchParams.get('lastId');
 
-    const snap = await adminDb.collection('products').get();
-    let products = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let q = adminDb
+      .collection('products')
+      .orderBy('createdAt', 'desc')
+      .limit(limitCount);
 
     if (branchId) {
-      products = products.filter((p: any) => p.branchId === branchId);
+      q = q.where('branchId', '==', branchId);
     }
 
-    products.sort((a: any, b: any) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
+    if (lastId) {
+      const lastDoc = await adminDb.collection('products').doc(lastId).get();
+      if (lastDoc.exists) {
+        q = q.startAfter(lastDoc);
+      }
+    }
+
+    const snap = await q.get();
+    const products = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     return NextResponse.json(products);
   } catch (err) {
