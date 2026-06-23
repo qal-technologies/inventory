@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 import { Search, AlertCircle } from 'lucide-react';
 
 export default function StaffHomePage() {
-  const branch = useSessionStore((s) => s.branch);
+  const { branchId } = useSessionStore();
   const [limitCount] = useState(100);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -19,14 +19,14 @@ export default function StaffHomePage() {
 
   // Fetch initial/paginated products
   const { data: productsPage, isLoading, isFetching } = useProducts(
-    branch?.branchId || 'calabar',
+    branchId || undefined,
     limitCount,
     lastId
   );
 
   // Server-side search (only when search is active)
   const { data: searchResults, isLoading: isSearching } = useProductSearch(
-    branch?.branchId || 'calabar',
+    branchId || undefined,
     search,
     search.trim().length > 0
   );
@@ -48,7 +48,7 @@ export default function StaffHomePage() {
     setAllProducts([]);
     setLastId(undefined);
     setSearch('');
-  }, [branch?.branchId]);
+  }, [branchId]);
 
   // Filter for display (use search results if searching, otherwise all products)
   const filtered = useMemo(() => {
@@ -147,7 +147,9 @@ export default function StaffHomePage() {
           <p>
             {search
               ? `No products match "${search}"`
-              : 'No products in stock at this branch'}
+              : !branchId
+                ? 'No branch selected. Please select a branch in your profile or at login.'
+                : 'No products in stock at this branch'}
           </p>
           {search && allProducts.length > 0 && (
             <p

@@ -32,7 +32,7 @@ export default function SelectBranchPage() {
         throw new Error(err.error || 'Invalid key');
       }
       const data = await res.json();
-      setBranch({ branchId: selectedId, branchName: data.branchName });
+      setBranch(selectedId, data.branchName);
       router.push('/staff/home');
       toast.success(`Connected to ${data.branchName}`);
     } catch (err: unknown) {

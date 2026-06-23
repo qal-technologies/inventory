@@ -106,14 +106,9 @@ export async function fetchProducts(
     console.error('[API Error] API route products fetch failed:', err);
   }
 
-  // Layer 3: Mock Data Fallback
-  console.warn(
-    '[Fallback] Locked out of Firestore. Returning mock products.'
-  );
-  return MOCK_PRODUCTS.filter((p) => p.branchId === branchId).slice(
-    0,
-    limitCount
-  );
+  // Layer 3: Final Fallback (Empty)
+  console.warn('[Fallback] All data sources exhausted. Returning empty list.');
+  return [];
 }
 
 /**
@@ -191,9 +186,7 @@ export async function fetchAllProducts(
     console.error('[API Error] API route fetchAllProducts failed:', err);
   }
 
-  // Layer 3: Mock Data
-  console.warn(
-    '[Fallback] Locked out of Firestore. Returning mock products.'
-  );
-  return MOCK_PRODUCTS.slice(0, limitCount);
+  // Layer 3: Final Fallback (Empty)
+  console.warn('[Fallback] All data sources exhausted. Returning empty list.');
+  return [];
 }

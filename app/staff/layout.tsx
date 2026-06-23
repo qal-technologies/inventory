@@ -25,7 +25,7 @@ export default function StaffLayout({
   const router = useRouter();
   const items = useCartStore((s) => s.items);
   const count = items.reduce((sum, i) => sum + i.qty, 0);
-  const { user, branch, _hasHydrated } = useSessionStore();
+  const { user, branchId, branchName, _hasHydrated } = useSessionStore();
   const [mounted, setMounted] = useState(false);
 
   const isLogin = pathname.includes('/login');
@@ -42,11 +42,11 @@ export default function StaffLayout({
     if (!isLogin) {
       if (!user) {
         router.replace('/login');
-      } else if (!isSelectBranch && !branch) {
+      } else if (!isSelectBranch && !branchId) {
         router.replace('/staff/select-branch');
       }
     }
-  }, [user, branch, isLogin, isSelectBranch, router, _hasHydrated]);
+  }, [user, branchId, isLogin, isSelectBranch, router, _hasHydrated]);
 
   if (!mounted || !_hasHydrated) {
     return (
@@ -70,7 +70,7 @@ export default function StaffLayout({
     );
   }
 
-  if (!isLogin && !isSelectBranch && !branch) {
+  if (!isLogin && !isSelectBranch && !branchId) {
     return (
       <div className='auth-container'>
         <div
@@ -97,9 +97,9 @@ export default function StaffLayout({
               Skincare Bestie
             </h4>
             <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-              {branch?.branchName ?
-                branch.branchName.charAt(0).toUpperCase() +
-                branch.branchName.slice(1) +
+              {branchName ?
+                branchName.charAt(0).toUpperCase() +
+                branchName.slice(1) +
                 ' branch'
               : 'No branch'}
             </p>

@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { toastError } from '@/lib/error-handler';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useProducts } from '@/lib/hooks/useProducts';
-import { useAppStore } from '@/store/appStore';
+import { useSessionStore } from '@/store/sessionStore';
 import type { Product } from '@/lib/firebase/converters';
 
 type Tab = 'products' | 'add';
@@ -19,7 +19,7 @@ export default function AdminInventoryPage() {
   const queryClient = useQueryClient();
 
   // Single source of truth — read branch filter directly from store
-  const { branch, setBranch } = useAppStore();
+  const { branchId, setBranch } = useSessionStore();
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
   const { data: branches } = useBranches();
@@ -30,13 +30,6 @@ export default function AdminInventoryPage() {
     return b?.name || id;
   };
 
-  // Resolve branch name → ID for product filtering
-  const branchId = useMemo(() => {
-    if (!branch) return undefined;
-    const found = branches?.find((b) => b.name === branch);
-    return found?.id;
-  }, [branch, branches]);
-
   const [limitCount] = useState(20);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -45,7 +38,7 @@ export default function AdminInventoryPage() {
     data: productsPage,
     isLoading,
     isFetching,
-  } = useProducts(branchId, limitCount, lastId);
+  } = useProducts(branchId || undefined, limitCount, lastId);
 
   useEffect(() => {
     if (productsPage) {
@@ -162,13 +155,17 @@ export default function AdminInventoryPage() {
                     height: 40,
                     padding: '0 10px',
                   }}
-                  value={branch || ''}
-                  onChange={(e) => setBranch(e.target.value || null)}>
+                  value={branchId || ''}
+                  onChange={(e) => {
+                    const bId = e.target.value;
+                    const bName = branches?.find((b) => b.id === bId)?.name || null;
+                    setBranch(bId || null, bName);
+                  }}>
                   <option value=''>All Branches</option>
                   {branches?.map((b) => (
                     <option
                       key={b.id}
-                      value={b.name}>
+                      value={b.id}>
                       {b.name}
                     </option>
                   ))}
