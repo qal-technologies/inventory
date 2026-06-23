@@ -3,7 +3,7 @@ import { useSales } from '@/lib/hooks/useSales';
 import { useQuery } from '@tanstack/react-query';
 import { fetchSaleMonths } from '@/lib/services/sales';
 import { motion } from 'framer-motion';
-import { Receipt, RefreshCw } from 'lucide-react';
+import { Receipt, RefreshCw, Search } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useBranches } from '@/lib/hooks/useBranches';
@@ -18,8 +18,19 @@ export default function AdminHistoryPage() {
     month,
     setMonth
   } = useSessionStore();
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [limitCount] = useState(30);
   const [fullCollection, setFullCollection] = useState<Sale[]>([]);
+
+  // Handle search debouncing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Pass branch constraint to get accurate limits per branch
   const {
@@ -72,8 +83,18 @@ export default function AdminHistoryPage() {
       });
     }
 
+    // Search filter
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
+      list = list.filter(s =>
+        s.branchName?.toLowerCase().includes(q) ||
+        s.items.some(it => it.name?.toLowerCase().includes(q)) ||
+        s.id.toLowerCase().includes(q)
+      );
+    }
+
     return list;
-  }, [fullCollection, branchId, month]);
+  }, [fullCollection, branchId, month, debouncedSearch]);
 
   const stats = useMemo(() => {
     return filteredSales.reduce((acc, s) => {
@@ -110,6 +131,20 @@ export default function AdminHistoryPage() {
           Sales History
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            className='search-wrap'
+            style={{ flex: 1, minWidth: 260, maxWidth: 350, margin: 0 }}>
+            <Search
+              size={18}
+              color='var(--text-light)'
+            />
+            <input
+              placeholder='Search history...'
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
           <button
             className="btn btn-ghost"
             onClick={() => {
