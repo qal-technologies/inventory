@@ -1,9 +1,9 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadProductImage } from '@/lib/cloudinary';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Package, Pencil, Trash2, ImageIcon, AlertTriangle, Filter } from 'lucide-react';
+import { Plus, Search, Package, Pencil, Trash2, ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { toastError } from '@/lib/error-handler';
 import { useBranches } from '@/lib/hooks/useBranches';
@@ -36,7 +36,7 @@ export default function AdminInventoryPage() {
     return found?.id;
   }, [branch, branches]);
 
-  const [limitCount, setLimitCount] = useState(20);
+  const [limitCount] = useState(20);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
   const [allProducts, setAllProducts] = useState<any[]>([]);
 
@@ -46,7 +46,7 @@ export default function AdminInventoryPage() {
     isFetching,
   } = useProducts(branchId, limitCount, lastId);
 
-  useMemo(() => {
+  useEffect(() => {
     if (productsPage) {
       setAllProducts((prev) => {
         const existingIds = new Set(prev.map((p) => p.id));
@@ -57,13 +57,13 @@ export default function AdminInventoryPage() {
   }, [productsPage]);
 
   // Reset when filters change
-  useMemo(() => {
+  useEffect(() => {
     setAllProducts([]);
     setLastId(undefined);
   }, [branchId]);
 
   const filtered = useMemo(() => {
-    let list = allProducts;
+    const list = allProducts;
     if (!search.trim()) return list;
     const q = search.toLowerCase();
     return list.filter(
@@ -398,10 +398,6 @@ function AddProductForm({ onSuccess }: { onSuccess: () => void }) {
 
   // Fetch branches for dropdown
   const { data: branches } = useBranches();
-  const branchNames = useMemo(() => {
-    if (!branches) return [];
-    return branches?.map((b) => b.name).filter(Boolean);
-  }, [branches]);
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

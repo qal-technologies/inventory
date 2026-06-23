@@ -1,18 +1,19 @@
 'use client';
 import { useSales } from '@/lib/hooks/useSales';
 import { motion } from 'framer-motion';
-import { Receipt, Filter } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Receipt } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useAppStore } from '@/store/appStore';
 import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
+import type { Sale, SaleItem } from '@/lib/firebase/converters';
 
 export default function AdminHistoryPage() {
   const { branch, setBranch, month, setMonth } = useAppStore();
-  const [limitCount, setLimitCount] = useState(20);
+  const [limitCount] = useState(20);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
-  const [allSales, setAllSales] = useState<any[]>([]);
+  const [allSales, setAllSales] = useState<Sale[]>([]);
 
   // Pass branch constraint to get accurate limits per branch
   const {
@@ -21,7 +22,7 @@ export default function AdminHistoryPage() {
     isFetching,
   } = useSales(branch || undefined, limitCount, lastId);
 
-  useMemo(() => {
+  useEffect(() => {
     if (salesPage) {
       setAllSales((prev) => {
         const existingIds = new Set(prev.map((s) => s.id));
@@ -32,7 +33,7 @@ export default function AdminHistoryPage() {
   }, [salesPage]);
 
   // Reset when filters change
-  useMemo(() => {
+  useEffect(() => {
     setAllSales([]);
     setLastId(undefined);
   }, [branch]);
@@ -250,7 +251,7 @@ export default function AdminHistoryPage() {
                           flexDirection: 'column',
                           gap: 4,
                         }}>
-                        {sale.items.map((it, idx) => (
+                        {sale.items.map((it: SaleItem, idx: number) => (
                           <div
                             key={idx}
                             style={{
