@@ -5,12 +5,18 @@ import { Receipt } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useBranches } from '@/lib/hooks/useBranches';
-import { useAppStore } from '@/store/appStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
 import type { Sale, SaleItem } from '@/lib/firebase/converters';
 
 export default function AdminHistoryPage() {
-  const { branch, setBranch, month, setMonth } = useAppStore();
+  const {
+    branchId,
+    setBranch,
+    month,
+    setMonth,
+    getAvailableMonths
+  } = useSessionStore();
   const [limitCount] = useState(20);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
   const [allSales, setAllSales] = useState<Sale[]>([]);
@@ -20,7 +26,7 @@ export default function AdminHistoryPage() {
     data: salesPage,
     isLoading,
     isFetching,
-  } = useSales(branch || undefined, limitCount, lastId);
+  } = useSales(branchId || undefined, limitCount, lastId);
 
   useEffect(() => {
     if (salesPage) {
@@ -36,37 +42,26 @@ export default function AdminHistoryPage() {
   useEffect(() => {
     setAllSales([]);
     setLastId(undefined);
-  }, [branch]);
+  }, [branchId]);
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
   const { data: branches } = useBranches();
-  const branchNames = useMemo(() => {
-    if (!branches) return [];
-    return branches.map((b) => b.name).filter(Boolean);
-  }, [branches]);
 
-  // Dynamically extract month options from ALL sangles (not filtered)
+  // Dynamically extract month options from ALL available months
   const monthOptions = useMemo(() => {
-    const set = new Set<string>();
-    allSales.forEach((s) => {
-      const ym = getYearMonth(s.createdAt);
-      if (ym) set.add(ym);
-    });
-    return [...set]
-      .sort((a, b) => b.localeCompare(a))
-      .map((ym) => ({ value: ym, label: formatMonthLabel(ym) }));
-  }, [allSales]);
+    return getAvailableMonths().map((ym) => ({
+      value: ym,
+      label: formatMonthLabel(ym),
+    }));
+  }, [getAvailableMonths]);
 
   const filtered = useMemo(() => {
     let res = allSales;
-    if (branch) {
-      res = res.filter((s) => s.branchName === branch);
-    }
     if (month) {
       res = res.filter((s) => getYearMonth(s.createdAt) === month);
     }
     return res;
-  }, [allSales, branch, month]);
+  }, [allSales, month]);
 
   const totalRevenue = filtered.reduce((sum, s) => sum + (s.total || 0), 0);
   const totalProfit = filtered.reduce((sum, s) => sum + (s.profit || 0), 0);
@@ -100,14 +95,18 @@ export default function AdminHistoryPage() {
               height: 40,
               padding: '0 10px',
             }}
-            value={branch || ''}
-            onChange={(e) => setBranch(e.target.value || null)}>
+            value={branchId || ''}
+            onChange={(e) => {
+              const bId = e.target.value;
+              const bName = branches?.find((b) => b.id === bId)?.name || null;
+              setBranch(bId || null, bName);
+            }}>
             <option value=''>All Branches</option>
-            {branchNames.map((b) => (
+            {branches?.map((b) => (
               <option
-                key={b}
-                value={b}>
-                {b}
+                key={b.id}
+                value={b.id}>
+                {b.name}
               </option>
             ))}
           </select>
@@ -223,7 +222,7 @@ export default function AdminHistoryPage() {
                     padding: 40,
                     color: 'var(--text-muted)',
                   }}>
-                  {branch || month ?
+                  {branchId || month ?
                     'No sales found for the selected filters'
                   : 'No sales yet'}
                 </td>

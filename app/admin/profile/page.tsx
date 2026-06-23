@@ -24,7 +24,6 @@ import toast from 'react-hot-toast';
 import { toastError } from '@/lib/error-handler';
 import { fetchBranches } from '@/lib/services/branches';
 import Link from 'next/link';
-import { useAppStore } from '@/store/appStore';
 
 type Branch = {
   id: string;
@@ -38,9 +37,7 @@ type Branch = {
 export default function AdminProfilePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, clearSession } = useSessionStore();
-  const { branch: selectedBranch, setBranch: setSelectedBranch } =
-    useAppStore();
+  const { user, clearSession, branchId, setBranch } = useSessionStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'branches'>('profile');
 
   // Branch CRUD State
@@ -111,16 +108,8 @@ export default function AdminProfilePage() {
       return res.json();
     },
     onSuccess: (data) => {
-      // If branch was renamed and our filter was pointing at the old name, update it
-      const { oldName, newName } = data || {};
-      if (
-        oldName &&
-        newName &&
-        oldName !== newName &&
-        selectedBranch === oldName
-      ) {
-        setSelectedBranch(newName);
-      }
+      // If branch was renamed, we might want to update the store if it's the current one
+      // But since we use branchId now, renaming the branch name shouldn't break the filter.
       queryClient.invalidateQueries({ queryKey: ['branches'] });
       // Re-fetch sales so dashboard/history reflect updated branchName on existing records
       queryClient.invalidateQueries({ queryKey: ['sales'] });
@@ -142,9 +131,8 @@ export default function AdminProfilePage() {
     },
     onSuccess: (data, deletedId) => {
       // If the deleted branch was the active filter, clear it
-      const deletedBranch = branches?.find((b) => b.id === deletedId);
-      if (deletedBranch && selectedBranch === deletedBranch.name) {
-        setSelectedBranch(null);
+      if (deletedId === branchId) {
+        setBranch(null, null);
       }
       queryClient.invalidateQueries({ queryKey: ['branches'] });
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });

@@ -14,15 +14,16 @@ import {
 import type { Product } from '@/lib/firebase/converters';
 import { fetchAllProducts } from '@/lib/services/products';
 import { useBranches } from '@/lib/hooks/useBranches';
-import { useAppStore } from '@/store/appStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
 
 export default function AdminHomePage() {
-  const { data: sales, isLoading: salesLoading } = useSales();
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
   // Single source of truth — no local mirror state
-  const { branch, month, setBranch, setMonth } = useAppStore();
+  const { branchId, month, setBranch, setMonth, getAvailableMonths } = useSessionStore();
+
+  const { data: sales, isLoading: salesLoading } = useSales(branchId || undefined);
 
   // Fetch products (limited) for summary stats
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
@@ -34,45 +35,29 @@ export default function AdminHomePage() {
   // Fetch branches
   const { data: branches } = useBranches();
 
-  // Branch names for the dropdown (only branches that exist)
-  const branchNames = useMemo(() => {
-    if (!branches) return [];
-    return branches.map((b) => b.name).filter(Boolean);
-  }, [branches]);
-
-  // Dynamically extract month options (YYYY-MM) from ALL sales records (not filtered)
+  // Dynamically extract month options (YYYY-MM) from ALL available months
   const monthOptions = useMemo(() => {
-    if (!sales) return [];
-    const set = new Set<string>();
-    sales.forEach((s) => {
-      const ym = getYearMonth(s.createdAt);
-      if (ym) set.add(ym);
-    });
-    return [...set]
-      .sort((a, b) => b.localeCompare(a))
-      .map((ym) => ({ value: ym, label: formatMonthLabel(ym) }));
-  }, [sales]);
+    return getAvailableMonths().map((ym) => ({
+      value: ym,
+      label: formatMonthLabel(ym),
+    }));
+  }, [getAvailableMonths]);
 
   // ── Filtering ─────────────────────────────────────────────────────────────────
   const filteredSales = useMemo(() => {
     if (!sales) return [];
     let res = sales;
-    if (branch) {
-      res = res.filter((s) => s.branchName === branch);
-    }
     if (month) {
       res = res.filter((s) => getYearMonth(s.createdAt) === month);
     }
     return res;
-  }, [sales, branch, month]);
+  }, [sales, month]);
 
   const filteredProducts = useMemo(() => {
     if (!products) return [];
-    if (!branch) return products;
-    const branchObj = branches?.find((b) => b.name === branch);
-    if (!branchObj) return products;
-    return products.filter((p) => p.branchId === branchObj.id);
-  }, [products, branch, branches]);
+    if (!branchId) return products;
+    return products.filter((p) => p.branchId === branchId);
+  }, [products, branchId]);
 
   // ── Compute stats ─────────────────────────────────────────────────────────────
   const today = new Date().toDateString();
@@ -198,14 +183,18 @@ export default function AdminHomePage() {
               height: 40,
               padding: '0 10px',
             }}
-            value={branch || ''}
-            onChange={(e) => setBranch(e.target.value || null)}>
+            value={branchId || ''}
+            onChange={(e) => {
+              const bId = e.target.value;
+              const bName = branches?.find((b) => b.id === bId)?.name || null;
+              setBranch(bId || null, bName);
+            }}>
             <option value=''>All Branches</option>
-            {branchNames.map((b) => (
+            {branches?.map((b) => (
               <option
-                key={b}
-                value={b}>
-                {b}
+                key={b.id}
+                value={b.id}>
+                {b.name}
               </option>
             ))}
           </select>

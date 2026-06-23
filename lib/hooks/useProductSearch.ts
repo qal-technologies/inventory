@@ -13,7 +13,7 @@ import type { Product } from '@/lib/firebase/converters';
  * @param enabled - Disable query if search is empty or component unmounted
  */
 export function useProductSearch(
-  branchId: string,
+  branchId: string | undefined,
   searchQuery: string,
   enabled: boolean = true
 ) {
@@ -32,7 +32,7 @@ export function useProductSearch(
       // Use deduplication to prevent duplicate in-flight requests
       return searchCache.getOrFetch(cacheKey, async () => {
         const params = new URLSearchParams();
-        params.set('branchId', branchId);
+        if (branchId) params.set('branchId', branchId);
         params.set('q', searchQuery);
 
         const res = await fetch(`/api/products/search?${params}`, {
