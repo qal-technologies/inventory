@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/products
- * Create new product with stock alert notifications
+ * Create new product with immediate stock alert notifications
  */
 export async function POST(req: NextRequest) {
   try {
@@ -138,9 +138,8 @@ export async function POST(req: NextRequest) {
     const stockVal = Math.max(0, Number(stock) || 0);
     const reorderVal = Math.max(1, Number(reorder) || 5);
 
-    // Queue stock alert if needed (batched, not immediate)
+    // Send immediate stock alert if needed (with 30-second dedup)
     if (stockVal <= reorderVal) {
-      const alertType = stockVal === 0 ? 'out-of-stock' : 'low-stock';
       const title = stockVal === 0 ? 'Out of Stock' : 'Low Stock Alert';
       const message = `${name} has been added with ${stockVal} units at branch ${branchId}`;
 
@@ -154,8 +153,8 @@ export async function POST(req: NextRequest) {
           url: '/admin/products',
         });
       } catch (err) {
-        console.error('[Product API] Failed to queue notification', err);
-        // Don't fail the product creation if notification fails
+        console.error('[Product API] Failed to send notification', err);
+        // Don't fail product creation if notification fails
       }
     }
 

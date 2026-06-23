@@ -1,12 +1,13 @@
 /**
  * Push Notification Trigger
- * Handles both immediate and queued push notifications
+ * Handles immediate push notifications with short deduplication
+ * No Cloud Functions - sends immediately when user is active on site
  */
 
 import { adminDb } from '@/lib/firebase/admin';
 import { broadcastPushNotification } from '@/lib/webpush';
 import type { PushPayload } from '@/lib/webpush';
-import { queueNotification, isDuplicateAlert } from '@/lib/services/notificationQueue';
+import { notificationDedup } from '@/lib/services/notificationDedup';
 
 export interface AdminPushOptions {
   title: string;
@@ -15,129 +16,144 @@ export interface AdminPushOptions {
   badge?: string;
   url?: string;
   tag?: string;
-  immediate?: boolean; // Send now instead of queuing (default: false)
 }
 
 /**
  * Trigger push notification to admins
- * By default queues for batch processing (saves writes)
- * Can optionally send immediately for critical alerts
+ * Sends immediately with 30-second deduplication window
+ * Perfect for Spark plan (no Cloud Functions needed)
  */
 export async function triggerAdminPush(
   options: AdminPushOptions
-): Promise<{ queued: boolean; immediate?: boolean }> {
-  const { immediate = false, ...payload } = options;
+): Promise<{ success: boolean; sent: number }> {
+  const { ...payload } = options;
 
   try {
-    if (immediate) {
-      // Send immediately (only for critical alerts)
-      const subsSnap = await adminDb
-        .collection('admin_push_subscriptions')
-        .get();
+    // Dedup key: admin-all-inventory
+    const shouldSend = notificationDedup.shouldNotify('admin', undefined, 'inventory');
 
-      if (subsSnap.empty) {
-        console.log(
-          '[Push] No admin subscriptions found for immediate push'
-        );
-        return { queued: false, immediate: true };
-      }
-
-      const subscriptions = subsSnap.docs.map((doc) => ({
-        ...(doc.data() as any),
-        id: doc.id,
-      }));
-
-      const staleIds = await broadcastPushNotification(subscriptions, payload as PushPayload);
-
-      // Clean up stale subscriptions
-      if (staleIds.length > 0) {
-        const batch = adminDb.batch();
-        staleIds.forEach((id) => {
-          batch.delete(
-            adminDb.collection('admin_push_subscriptions').doc(id)
-          );
-        });
-        await batch.commit();
-        console.log('[Push] Removed stale subscriptions', { count: staleIds.length });
-      }
-
-      console.log('[Push] Sent immediate push to admins', {
-        title: payload.title,
-        count: subscriptions.length - staleIds.length,
-      });
-
-      return { queued: false, immediate: true };
-    } else {
-      // Queue for batch processing (preferred for non-critical notifications)
-      await queueNotification({
-        type: 'inventory',
-        branchId: 'all',
-        title: payload.title,
-        message: payload.body,
-        severity: payload.tag === 'danger' ? 'danger' : 'warning',
-        data: { url: payload.url },
-      });
-
-      console.log('[Push] Queued notification for batch processing', {
-        title: payload.title,
-      });
-
-      return { queued: true };
+    if (!shouldSend) {
+      console.log('[Push] Skipped duplicate admin notification within 30s');
+      return { success: true, sent: 0 };
     }
+
+    // Fetch admin subscriptions
+    const subsSnap = await adminDb
+      .collection('admin_push_subscriptions')
+      .get();
+
+    if (subsSnap.empty) {
+      console.log('[Push] No admin subscriptions found');
+      return { success: true, sent: 0 };
+    }
+
+    const subscriptions = subsSnap.docs.map((doc) => ({
+      ...(doc.data() as any),
+      id: doc.id,
+    }));
+
+    // Send push to all subscribers
+    const staleIds = await broadcastPushNotification(
+      subscriptions,
+      payload as PushPayload
+    );
+
+    // Clean up stale subscriptions
+    if (staleIds.length > 0) {
+      const batch = adminDb.batch();
+      staleIds.forEach((id) => {
+        batch.delete(
+          adminDb.collection('admin_push_subscriptions').doc(id)
+        );
+      });
+      await batch.commit();
+      console.log('[Push] Removed stale subscriptions', { count: staleIds.length });
+    }
+
+    const sentCount = subscriptions.length - staleIds.length;
+
+    console.log('[Push] Sent immediate push to admins', {
+      title: payload.title,
+      sent: sentCount,
+    });
+
+    return { success: true, sent: sentCount };
   } catch (err) {
-    console.error('[Push Error] Failed to trigger notification', err);
-    throw err;
+    console.error('[Push Error] Failed to trigger admin notification', err);
+    return { success: false, sent: 0 };
   }
 }
 
 /**
- * Trigger branch-specific push with deduplication
+ * Trigger branch-specific push with 30-second deduplication
+ * Sends immediately with short dedup window
  */
 export async function triggerBranchPush(
   branchId: string,
   productId: string | undefined,
-  options: Omit<AdminPushOptions, 'immediate'>
-): Promise<void> {
+  options: AdminPushOptions
+): Promise<{ success: boolean; sent: number; deduped: boolean }> {
   try {
-    // Determine notification type from title/tag
+    // Determine notification type from tag
     const type = options.tag === 'danger' ? 'out-of-stock' : 'low-stock';
 
-    // Check for duplicates within 15 minute window
-    if (productId) {
-      const isDuplicate = await isDuplicateAlert(
+    // Check dedup cache (30 second window)
+    const shouldSend = notificationDedup.shouldNotify(branchId, productId, type);
+
+    if (!shouldSend) {
+      console.log('[Push] Skipped duplicate branch notification within 30s', {
         branchId,
         productId,
         type,
-        15
-      );
-
-      if (isDuplicate) {
-        console.log(
-          '[Push] Skipped duplicate alert',
-          { branchId, productId, type }
-        );
-        return;
-      }
+      });
+      return { success: true, sent: 0, deduped: true };
     }
 
-    // Queue the notification
-    await queueNotification({
-      type: type as any,
-      branchId,
-      productId,
-      title: options.title,
-      message: options.body,
-      severity: options.tag === 'danger' ? 'danger' : 'warning',
-      data: { url: options.url },
-    });
+    // Fetch branch staff subscriptions
+    const subsSnap = await adminDb
+      .collection('branch_push_subscriptions')
+      .where('branchId', '==', branchId)
+      .get();
 
-    console.log('[Push] Queued branch notification', {
+    if (subsSnap.empty) {
+      console.log('[Push] No subscriptions for branch', { branchId });
+      return { success: true, sent: 0, deduped: false };
+    }
+
+    const subscriptions = subsSnap.docs.map((doc) => ({
+      ...(doc.data() as any),
+      id: doc.id,
+    }));
+
+    // Send push to branch staff
+    const staleIds = await broadcastPushNotification(
+      subscriptions,
+      options as PushPayload
+    );
+
+    // Clean up stale subscriptions
+    if (staleIds.length > 0) {
+      const batch = adminDb.batch();
+      staleIds.forEach((id) => {
+        batch.delete(
+          adminDb.collection('branch_push_subscriptions').doc(id)
+        );
+      });
+      await batch.commit();
+    }
+
+    const sentCount = subscriptions.length - staleIds.length;
+
+    console.log('[Push] Sent branch notification', {
       branchId,
       productId,
       type,
+      sent: sentCount,
     });
+
+    return { success: true, sent: sentCount, deduped: false };
   } catch (err) {
-    console.error('[Push Error] Failed to trigger branch push', err);
-    throw err;
+    console.error('[Push Error] Failed to trigger branch notification', err);
+    return { success: false, sent: 0, deduped: false };
   }
 }
