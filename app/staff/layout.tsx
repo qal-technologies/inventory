@@ -25,7 +25,7 @@ export default function StaffLayout({
   const router = useRouter();
   const items = useCartStore((s) => s.items);
   const count = items.reduce((sum, i) => sum + i.qty, 0);
-  const { user, branch, _hasHydrated } = useSessionStore();
+  const { user, branchId, branchName, _hasHydrated } = useSessionStore();
   const [mounted, setMounted] = useState(false);
 
   const isLogin = pathname.includes('/login');
@@ -42,11 +42,9 @@ export default function StaffLayout({
     if (!isLogin) {
       if (!user) {
         router.replace('/login');
-      } else if (!isSelectBranch && !branch) {
-        router.replace('/staff/select-branch');
       }
     }
-  }, [user, branch, isLogin, isSelectBranch, router, _hasHydrated]);
+  }, [user, isLogin, router, _hasHydrated]);
 
   if (!mounted || !_hasHydrated) {
     return (
@@ -70,16 +68,6 @@ export default function StaffLayout({
     );
   }
 
-  if (!isLogin && !isSelectBranch && !branch) {
-    return (
-      <div className='auth-container'>
-        <div
-          className='spinner spinner-lg'
-          style={{ color: 'var(--accent)' }}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className='page-wrapper'>
@@ -97,9 +85,9 @@ export default function StaffLayout({
               Skincare Bestie
             </h4>
             <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-              {branch?.branchName ?
-                branch.branchName.charAt(0).toUpperCase() +
-                branch.branchName.slice(1) +
+              {branchName ?
+                branchName.charAt(0).toUpperCase() +
+                branchName.slice(1) +
                 ' branch'
               : 'No branch'}
             </p>
@@ -116,7 +104,7 @@ export default function StaffLayout({
 
       {/* Bottom Tab Bar */}
       {!hideBar && (
-        <nav className='tab-bar'>
+        <nav className='tab-bar' style={{maxWidth:'400px'}}>
           {tabs.map((tab) => {
             const active = pathname === tab.href;
             const Icon = tab.icon;

@@ -11,6 +11,7 @@ import {
   ShoppingBag,
   TrendingUp,
   Calendar,
+  RefreshCcw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { signOut } from 'firebase/auth';
@@ -18,9 +19,9 @@ import { auth } from '@/lib/firebase/client';
 
 export default function StaffProfilePage() {
   const router = useRouter();
-  const { user, branch, clearSession } = useSessionStore();
+  const { user, branchId, branchName, clearSession } = useSessionStore();
   const clearCart = useCartStore((s) => s.clearCart);
-  const { data: sales } = useSales(branch?.branchId);
+  const { data: sales } = useSales(branchId || undefined);
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
   const today = new Date().toDateString();
@@ -94,13 +95,31 @@ export default function StaffProfilePage() {
             fontSize: '0.875rem',
           }}>
           <MapPin size={16} />
-          <span>{branch?.branchName || 'No branch selected'}</span>
+          <span>{branchName || 'No branch selected'}</span>
           <span
             className='badge badge-pink'
             style={{ marginLeft: 'auto' }}>
             {user?.role}
           </span>
         </div>
+
+        <button
+          className='btn btn-ghost'
+          style={{
+            marginTop: 16,
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            color: 'var(--accent-deep)',
+            border: '1px solid var(--accent-deep)',
+          }}
+          onClick={() => router.push('/staff/select-branch')}
+        >
+          <RefreshCcw size={16} />
+          {branchId ? 'Change Branch' : 'Select Branch'}
+        </button>
       </div>
 
       {/* Logout */}

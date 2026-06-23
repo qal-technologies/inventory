@@ -96,11 +96,9 @@ export async function fetchSales(
     console.error('API route sales fetch failed:', err);
   }
 
-  // Layer 3: Mock Data Fallback
-  console.warn(
-    'All live data sources failed (locked quota). Returning mock sales.',
-  );
-  return (MOCK_SALES as Sale[]).slice(0, limitCount);
+  // Layer 3: Final Fallback (Empty)
+  console.warn('[Fallback] All data sources exhausted. Returning empty list.');
+  return [];
 }
 
 export async function createSale(payload: {

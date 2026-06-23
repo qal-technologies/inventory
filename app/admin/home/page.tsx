@@ -11,51 +11,44 @@ import {
   Award,
 } from 'lucide-react';
 import { useBranches } from '@/lib/hooks/useBranches';
-import { useAppStore } from '@/store/appStore';
+import { useSessionStore } from '@/store/sessionStore';
 import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
 
 export default function AdminHomePage() {
-  const { data: sales, isLoading: salesLoading } = useSales();
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
   // Single source of truth — no local mirror state
-  const { branch, month, setBranch, setMonth } = useAppStore();
+  const { branchId, month, setBranch, setMonth, getAvailableMonths } = useSessionStore();
+
+  const { data: sales, isLoading: salesLoading } = useSales(branchId || undefined);
 
 
   // Fetch branches
   const { data: branches } = useBranches();
 
-  // Branch names for the dropdown (only branches that exist)
-  const branchNames = useMemo(() => {
-    if (!branches) return [];
-    return branches.map((b) => b.name).filter(Boolean);
-  }, [branches]);
-
-  // Show all months from the last 24 months
+  // Dynamically extract month options (YYYY-MM) from ALL available months
   const monthOptions = useMemo(() => {
-    const options = [];
-    const now = new Date();
-    for (let i = 0; i < 24; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const ym = format(d, 'yyyy-MM');
-      options.push({ value: ym, label: formatMonthLabel(ym) });
-    }
-    return options;
-  }, []);
+    return getAvailableMonths().map((ym) => ({
+      value: ym,
+      label: formatMonthLabel(ym),
+    }));
+  }, [getAvailableMonths]);
 
   // ── Filtering ─────────────────────────────────────────────────────────────────
   const filteredSales = useMemo(() => {
     if (!sales) return [];
     let res = sales;
-    if (branch) {
-      res = res.filter((s) => s.branchName === branch);
-    }
     if (month) {
       res = res.filter((s) => getYearMonth(s.createdAt) === month);
     }
     return res;
-  }, [sales, branch, month]);
+  }, [sales, month]);
 
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    if (!branchId) return products;
+    return products.filter((p) => p.branchId === branchId);
+  }, [products, branchId]);
 
   // ── Compute stats ─────────────────────────────────────────────────────────────
   const today = new Date().toDateString();
@@ -176,14 +169,18 @@ export default function AdminHomePage() {
               height: 40,
               padding: '0 10px',
             }}
-            value={branch || ''}
-            onChange={(e) => setBranch(e.target.value || null)}>
+            value={branchId || ''}
+            onChange={(e) => {
+              const bId = e.target.value;
+              const bName = branches?.find((b) => b.id === bId)?.name || null;
+              setBranch(bId || null, bName);
+            }}>
             <option value=''>All Branches</option>
-            {branchNames.map((b) => (
+            {branches?.map((b) => (
               <option
-                key={b}
-                value={b}>
-                {b}
+                key={b.id}
+                value={b.id}>
+                {b.name}
               </option>
             ))}
           </select>

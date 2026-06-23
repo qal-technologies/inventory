@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
     const branchId = searchParams.get('branchId');
 
     let q: Query = db.collection('notifications');
+    const snap = await adminDb.collection('notifications').get();
+    let list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 
     if (branchId) {
       q = q.where('branchId', '==', branchId);

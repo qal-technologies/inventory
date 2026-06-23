@@ -26,7 +26,7 @@ export default function StaffCartPage() {
     clearCart,
     hasStockIssues,
   } = useCartStore();
-  const branch = useSessionStore((s) => s.branch);
+  const { branchId, branchName } = useSessionStore();
   const { data: branches } = useBranches();
   const queryClient = useQueryClient();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -42,7 +42,7 @@ export default function StaffCartPage() {
 
   const handleProceed = async () => {
     if (!items.length) return toast.error('Cart is empty');
-    if (!branch?.branchId) return toast.error('No branch selected');
+    if (!branchId) return toast.error('No branch selected');
     if (stockIssues)
       return toast.error(
         'Some items exceed available stock. Please adjust quantities.',
@@ -50,7 +50,7 @@ export default function StaffCartPage() {
 
     // Fetch payment info for branch
     if (branches) {
-      const branchDoc = branches.find((b) => b.id === branch.branchId);
+      const branchDoc = branches.find((b) => b.id === branchId);
       if (branchDoc) {
         setPaymentInfo({
           account: branchDoc.paymentAccount || '',
@@ -63,15 +63,15 @@ export default function StaffCartPage() {
   };
 
   const handleConfirmSale = async () => {
-    if (!branch) return;
+    if (!branchId || !branchName) return;
     setLoading(true);
     try {
       await createSale({
         items: items.map((i) => ({ productId: i.product.id, qty: i.qty })),
         discount,
         discountType,
-        branchId: branch.branchId,
-        branchName: branch.branchName,
+        branchId: branchId,
+        branchName: branchName,
       });
 
       // QUOTA OPTIMIZATION: Manually update the cache instead of full invalidation
