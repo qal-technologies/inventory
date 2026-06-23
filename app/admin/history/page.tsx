@@ -249,7 +249,7 @@ export default function AdminHistoryPage() {
                   ))}
                 </tr>
               ))
-            : !isActuallyLoading && allSales.length === 0 ?
+            : !isActuallyLoading && filteredSales.length === 0 ?
               <tr>
                 <td
                   colSpan={6}
@@ -336,7 +336,7 @@ export default function AdminHistoryPage() {
           }}>
           <button
             className='btn-primary'
-            onClick={() => setLastId(allSales[allSales.length - 1]?.id)}
+            onClick={() => setLastId(filteredSales[filteredSales.length - 1]?.id)}
             disabled={isFetching}
             style={{
               width: 'auto',

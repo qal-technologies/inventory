@@ -375,7 +375,7 @@ export default function AdminInventoryPage() {
                 <button
                   className='btn-primary'
                   onClick={() =>
-                    setLastId(allProducts[allProducts.length - 1]?.id)
+                    setLastId(filtered[filtered.length - 1]?.id)
                   }
                   disabled={isFetching}
                   style={{
