@@ -3,16 +3,12 @@ import { useMemo } from 'react';
 import { useSales } from '@/lib/hooks/useSales';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
 import {
   TrendingUp,
   DollarSign,
   ShoppingBag,
-  AlertTriangle,
   Package,
   Award,
-  Filter,
-  Bell,
 } from 'lucide-react';
 import type { Product } from '@/lib/firebase/converters';
 import { fetchAllProducts } from '@/lib/services/products';
@@ -68,15 +64,6 @@ export default function AdminHomePage() {
     }
     return res;
   }, [sales, branch, month]);
-
-  const filteredProducts = useMemo(() => {
-    if (!products) return [];
-    if (!branch) return products;
-    // Resolve branch name → ID for product filtering
-    const branchObj = branches?.find((b) => b.name === branch);
-    if (!branchObj) return products; // branch not found yet, show all
-    return products.filter((p) => p.branchId === branchObj.id);
-  }, [products, branch, branches]);
 
   // ── Compute stats ─────────────────────────────────────────────────────────────
   const today = new Date().toDateString();
@@ -153,11 +140,6 @@ export default function AdminHomePage() {
     },
   ];
 
-  const getBranchName = (id?: string) => {
-    if (!id) return 'General';
-    const b = branches?.find((b) => b.id === id);
-    return b?.name || id;
-  };
 
   // QUOTA OPTIMIZATION: Notification fetching removed from layout/header to prevent polling on mount.
 

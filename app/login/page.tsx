@@ -22,21 +22,6 @@ export default function LoginPage() {
     if (!email || !password) return toast.error('Fill in all fields');
     setLoading(true);
     try {
-      // QUOTA OPTIMIZATION: Bypass Firebase Auth if USE_MOCK_DATA is true
-      if (email === 'admin@example.com' && password === 'password') {
-        const mockUser = { uid: 'mock-admin', role: 'admin', name: 'Mock Admin', email };
-        setUser(mockUser as any);
-        // We still need to call the session API to set the cookie
-        await fetch('/api/auth/mock-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mockUser),
-        });
-        router.push('/admin/home');
-        toast.success('Welcome, Mock Admin!');
-        return;
-      }
-
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await cred.user.getIdToken();
       const res = await fetch('/api/auth/login', {
