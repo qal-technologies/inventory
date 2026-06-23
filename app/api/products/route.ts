@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     }
 
     const snap = await q.get();
-    const products = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const products = snap.docs.map((d:any) => ({ id: d.id, ...d.data() }));
 
     return NextResponse.json(products);
   } catch (err) {
