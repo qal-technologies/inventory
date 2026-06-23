@@ -3,6 +3,8 @@
  * Provides consistent error responses and logging
  */
 
+import toast from "react-hot-toast";
+
 export class AppError extends Error {
   constructor(
     public message: string,
@@ -157,4 +159,14 @@ export function handleFirebaseError(error: any): AppError {
   }
 
   return new AppError(`Firebase error: ${message}`, 500, error?.code || 'FIREBASE_ERROR');
+}
+
+export function toastError(error: unknown, defaultMessage?: string) {
+  if (error instanceof AppError) {
+    toast.error(error.message);
+  } else if (error instanceof Error) {
+    toast.error(defaultMessage || error.message);
+  } else {
+    toast.error(defaultMessage || 'An error occurred');
+  }
 }

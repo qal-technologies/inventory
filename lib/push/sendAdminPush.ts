@@ -14,7 +14,7 @@ export async function sendAdminPush(payload: PushPayload): Promise<void> {
 
   if (snap.empty) return;
 
-  const subscriptions = snap.docs.map((doc) => ({
+  const subscriptions = snap.docs.map((doc: any) => ({
     id: doc.id,
     endpoint: doc.data().endpoint as string,
     keys: doc.data().keys as { p256dh: string; auth: string },
