@@ -1,34 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { getAdminDb, adminDb } from '@/lib/firebase/admin';
 import { getSession } from '@/lib/auth/session';
 import { triggerAdminPush } from '@/lib/push/triggerPush';
+import type { Product } from '@/lib/firebase/converters';
+import type { Query, QuerySnapshot, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 // GET /api/products?branchId=xxx&limit=20&lastId=xxx
 export async function GET(req: NextRequest) {
   try {
+    const db = getAdminDb();
+    if (!db) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 });
+
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get('branchId');
     const limitCount = parseInt(searchParams.get('limit') || '20');
     const lastId = searchParams.get('lastId');
 
-    let q = adminDb
-      .collection('products')
-      .orderBy('createdAt', 'desc')
-      .limit(limitCount);
+    let q: Query = db.collection('products');
 
     if (branchId) {
       q = q.where('branchId', '==', branchId);
     }
 
+    q = q.orderBy('createdAt', 'desc');
+
     if (lastId) {
-      const lastDoc = await adminDb.collection('products').doc(lastId).get();
+      const lastDoc = await db.collection('products').doc(lastId).get();
       if (lastDoc.exists) {
         q = q.startAfter(lastDoc);
       }
     }
 
-    const snap = await q.get();
-    const products = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    q = q.limit(limitCount);
+
+    const snap = await q.get() as QuerySnapshot;
+    const products = snap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }) as Product);
 
     return NextResponse.json(products);
   } catch (err) {

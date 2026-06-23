@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Percent, DollarSign, AlertTriangle } from 'lucide-react';
 import { createSale } from '@/lib/services/sales';
 import { useQueryClient } from '@tanstack/react-query';
+import type { Product } from '@/lib/firebase/converters';
 import toast from 'react-hot-toast';
 import { toastError } from '@/lib/error-handler';
 import { useBranches } from '@/lib/hooks/useBranches';
@@ -72,9 +73,21 @@ export default function StaffCartPage() {
         branchId: branch.branchId,
         branchName: branch.branchName,
       });
+
+      // QUOTA OPTIMIZATION: Manually update the cache instead of full invalidation
+      queryClient.setQueryData(['products', branch.branchId], (old: Product[] | undefined) => {
+        if (!old) return old;
+        return old.map((p) => {
+          const cartItem = items.find((item) => item.product.id === p.id);
+          if (cartItem) {
+            return { ...p, stock: p.stock - cartItem.qty };
+          }
+          return p;
+        });
+      });
+
       clearCart();
       setCheckoutOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       /* QUOTA OPTIMIZATION: staff-notifications invalidated removed as feature is deleted */
       toast.success('Sale completed! 🎉');

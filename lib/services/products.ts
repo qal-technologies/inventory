@@ -86,6 +86,33 @@ export async function fetchProducts(
 }
 
 /**
+ * Fetch all products for a specific branch (no pagination)
+ */
+export async function fetchAllBranchProducts(branchId: string): Promise<Product[]> {
+  if (QUOTA_CONFIG.USE_MOCK_DATA) {
+    return (MOCK_PRODUCTS as Product[]).filter((p) => p.branchId === branchId);
+  }
+
+  try {
+    const q = query(
+      collection(db, 'products'),
+      where('branchId', '==', branchId),
+      orderBy('name', 'asc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Product);
+  } catch (err) {
+    console.error('fetchAllBranchProducts failed, trying API route...', err);
+    const res = await fetch(`/api/products?branchId=${encodeURIComponent(branchId)}&limit=1000`);
+    if (res.ok) {
+      const list = await res.json();
+      if (Array.isArray(list)) return list;
+    }
+  }
+  return (MOCK_PRODUCTS as Product[]).filter((p) => p.branchId === branchId);
+}
+
+/**
  * Fetch all products across all branches.
  * Falls back to server-side API route if client SDK query fails.
  */

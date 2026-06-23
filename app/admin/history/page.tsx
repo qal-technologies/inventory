@@ -45,17 +45,17 @@ export default function AdminHistoryPage() {
     return branches.map((b) => b.name).filter(Boolean);
   }, [branches]);
 
-  // Dynamically extract month options from ALL sangles (not filtered)
+  // Show all months from the last 24 months
   const monthOptions = useMemo(() => {
-    const set = new Set<string>();
-    allSales.forEach((s) => {
-      const ym = getYearMonth(s.createdAt);
-      if (ym) set.add(ym);
-    });
-    return [...set]
-      .sort((a, b) => b.localeCompare(a))
-      .map((ym) => ({ value: ym, label: formatMonthLabel(ym) }));
-  }, [allSales]);
+    const options = [];
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ym = format(d, 'yyyy-MM');
+      options.push({ value: ym, label: formatMonthLabel(ym) });
+    }
+    return options;
+  }, []);
 
   const filtered = useMemo(() => {
     let res = allSales;

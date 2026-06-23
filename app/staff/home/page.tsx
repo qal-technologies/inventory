@@ -1,7 +1,8 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { useSessionStore } from '@/store/sessionStore';
-import { useProducts } from '@/lib/hooks/useProducts';
+import { useQuery } from '@tanstack/react-query';
+import { fetchAllBranchProducts } from '@/lib/services/products';
 import ProductCard from '@/components/shared/ProductCard';
 import type { Product } from '@/lib/firebase/converters';
 import SkeletonCard from '@/components/shared/SkeletonCard';
@@ -10,33 +11,17 @@ import { Search } from 'lucide-react';
 
 export default function StaffHomePage() {
   const branch = useSessionStore((s) => s.branch);
-  const [limitCount] = useState(20);
-  const [lastId, setLastId] = useState<string | undefined>(undefined);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [search, setSearch] = useState('');
 
   const {
-    data: productsPage,
+    data: allProducts = [],
     isLoading,
-    isFetching,
-  } = useProducts(branch?.branchId || 'calabar', limitCount, lastId);
-
-  useEffect(() => {
-    if (productsPage) {
-      setAllProducts((prev) => {
-        const existingIds = new Set(prev.map((p) => p.id));
-        const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
-        return [...prev, ...newProducts];
-      });
-    }
-  }, [productsPage]);
-
-  // Reset when branch changes
-  useEffect(() => {
-    setAllProducts([]);
-    setLastId(undefined);
-  }, [branch?.branchId]);
-
-  const [search, setSearch] = useState('');
+  } = useQuery({
+    queryKey: ['products', branch?.branchId],
+    queryFn: () => fetchAllBranchProducts(branch?.branchId || ''),
+    enabled: !!branch?.branchId,
+    staleTime: 300_000, // 5 minutes
+  });
 
   const filtered = useMemo(() => {
     const inStock = allProducts.filter((p: Product) => p.stock > 0);
@@ -120,28 +105,6 @@ export default function StaffHomePage() {
         </div>
       }
 
-      {/* QUOTA OPTIMIZATION: Simple append pagination */}
-      {productsPage && productsPage.length >= limitCount && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: 20,
-            marginBottom: 80,
-          }}>
-          <button
-            className='btn-primary'
-            onClick={() => setLastId(allProducts[allProducts.length - 1]?.id)}
-            disabled={isFetching}
-            style={{
-              width: 'auto',
-              padding: '0 24px',
-              opacity: isFetching ? 0.7 : 1,
-            }}>
-            {isFetching ? 'Loading...' : 'Load More Products'}
-          </button>
-        </div>
-      )}
     </motion.div>
   );
 }

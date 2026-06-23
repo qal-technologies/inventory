@@ -1,18 +1,15 @@
 'use client';
 import { useMemo } from 'react';
 import { useSales } from '@/lib/hooks/useSales';
-import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { format } from 'date-fns';
 import {
   TrendingUp,
   DollarSign,
   ShoppingBag,
   Package,
   Award,
-  Filter,
 } from 'lucide-react';
-import type { Product } from '@/lib/firebase/converters';
-import { fetchAllProducts } from '@/lib/services/products';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useAppStore } from '@/store/appStore';
 import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
@@ -24,12 +21,6 @@ export default function AdminHomePage() {
   // Single source of truth — no local mirror state
   const { branch, month, setBranch, setMonth } = useAppStore();
 
-  // Fetch products (limited) for summary stats
-  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
-    queryKey: ['admin-products', 20],
-    queryFn: () => fetchAllProducts(20),
-    staleTime: 600_000,
-  });
 
   // Fetch branches
   const { data: branches } = useBranches();
@@ -40,18 +31,17 @@ export default function AdminHomePage() {
     return branches.map((b) => b.name).filter(Boolean);
   }, [branches]);
 
-  // Dynamically extract month options (YYYY-MM) from ALL sales records (not filtered)
+  // Show all months from the last 24 months
   const monthOptions = useMemo(() => {
-    if (!sales) return [];
-    const set = new Set<string>();
-    sales.forEach((s) => {
-      const ym = getYearMonth(s.createdAt);
-      if (ym) set.add(ym);
-    });
-    return [...set]
-      .sort((a, b) => b.localeCompare(a))
-      .map((ym) => ({ value: ym, label: formatMonthLabel(ym) }));
-  }, [sales]);
+    const options = [];
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ym = format(d, 'yyyy-MM');
+      options.push({ value: ym, label: formatMonthLabel(ym) });
+    }
+    return options;
+  }, []);
 
   // ── Filtering ─────────────────────────────────────────────────────────────────
   const filteredSales = useMemo(() => {
@@ -66,13 +56,6 @@ export default function AdminHomePage() {
     return res;
   }, [sales, branch, month]);
 
-  const filteredProducts = useMemo(() => {
-    if (!products) return [];
-    if (!branch) return products;
-    const branchObj = branches?.find((b) => b.name === branch);
-    if (!branchObj) return products;
-    return products.filter((p) => p.branchId === branchObj.id);
-  }, [products, branch, branches]);
 
   // ── Compute stats ─────────────────────────────────────────────────────────────
   const today = new Date().toDateString();
@@ -153,13 +136,8 @@ export default function AdminHomePage() {
   // QUOTA OPTIMIZATION: Notification fetching removed from layout/header to prevent polling on mount.
 
   const recentSales = filteredSales.slice(0, 5);
-  const isLoading = salesLoading || productsLoading;
+  const isLoading = salesLoading;
 
-  const getBranchName = (id?: string) => {
-    if (!id) return 'General';
-    const b = branches?.find((b) => b.id === id);
-    return b?.name || id;
-  };
 
   return (
     <div>

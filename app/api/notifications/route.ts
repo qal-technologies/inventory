@@ -4,28 +4,32 @@ import {getSession} from '@/lib/auth/session';
 import { triggerAdminPush } from '@/lib/push/triggerPush';
 
 
+import type { Query, QuerySnapshot, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getAdminDb } from '@/lib/firebase/admin';
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const db = getAdminDb();
+    if (!db) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 });
+
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get('branchId');
 
-    const snap = await adminDb.collection('notifications').get();
-    let list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let q: Query = db.collection('notifications');
 
     if (branchId) {
-      list = list.filter((n: any) => n.branchId === branchId);
+      q = q.where('branchId', '==', branchId);
     }
 
-    list.sort((a: any, b: any) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
+    q = q.orderBy('createdAt', 'desc').limit(100);
 
-    return NextResponse.json(list.slice(0, 100));
+    const snap = await q.get() as QuerySnapshot;
+    const list = snap.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() }));
+
+    return NextResponse.json(list);
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
