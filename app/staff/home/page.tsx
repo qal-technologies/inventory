@@ -55,11 +55,11 @@ export default function StaffHomePage() {
   const filtered = useMemo(() => {
     // If search is active, use server-side search results
     if (search.trim().length > 0) {
-      return (searchResults || []).filter((p: Product) => p.stock > 0);
+      return (searchResults || []); // Removed p.stock > 0 filter to show out of stock too if searched
     }
 
     // Otherwise use loaded products
-    return allProducts.filter((p: Product) => p.stock > 0);
+    return allProducts; // Removed p.stock > 0 filter here as well
   }, [allProducts, searchResults, search]);
 
   // Handle load more
@@ -190,7 +190,7 @@ export default function StaffHomePage() {
           <p>
             {search
               ? `No products match "${search}"`
-              : 'No products in stock at this branch'}
+              : 'No products found at this branch'}
           </p>
           {search && allProducts.length > 0 && (
             <p
@@ -266,7 +266,7 @@ export default function StaffHomePage() {
             <div>
               <strong>No products found</strong>
               <p style={{ marginTop: '4px', opacity: 0.8 }}>
-                This branch has no products in inventory yet. Contact your administrator to add products.
+                This branch has no products in inventory yet or they might be out of stock. Contact your administrator to add products or update stock.
               </p>
             </div>
           </motion.div>
