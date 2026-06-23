@@ -37,17 +37,33 @@ export default function AdminInventoryPage() {
   }, [branch, branches]);
 
   const [limitCount, setLimitCount] = useState(20);
+  const [lastId, setLastId] = useState<string | undefined>(undefined);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+
   const {
-    data: products,
+    data: productsPage,
     isLoading,
     isFetching,
-  } = useProducts(branchId, limitCount);
+  } = useProducts(branchId, limitCount, lastId);
+
+  useMemo(() => {
+    if (productsPage) {
+      setAllProducts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
+        return [...prev, ...newProducts];
+      });
+    }
+  }, [productsPage]);
+
+  // Reset when filters change
+  useMemo(() => {
+    setAllProducts([]);
+    setLastId(undefined);
+  }, [branchId]);
 
   const filtered = useMemo(() => {
-    if (!products) return [];
-    let list = products;
-    // Products are already pre-filtered by branchId from the API hook
-    // Just apply the search filter
+    let list = allProducts;
     if (!search.trim()) return list;
     const q = search.toLowerCase();
     return list.filter(
@@ -55,7 +71,7 @@ export default function AdminInventoryPage() {
         p.name.toLowerCase().includes(q) ||
         p?.category?.toLowerCase().includes(q),
     );
-  }, [products, search]);
+  }, [allProducts, search]);
 
   // QUOTA OPTIMIZATION: lowStockProducts computation removed
 
@@ -327,7 +343,7 @@ export default function AdminInventoryPage() {
             </div>
 
             {/* QUOTA OPTIMIZATION: Simple append pagination */}
-            {products && products.length >= limitCount && (
+            {productsPage && productsPage.length >= limitCount && (
               <div
                 style={{
                   display: 'flex',
@@ -336,7 +352,7 @@ export default function AdminInventoryPage() {
                 }}>
                 <button
                   className='btn-primary'
-                  onClick={() => setLimitCount((prev) => prev + 20)}
+                  onClick={() => setLastId(allProducts[allProducts.length - 1]?.id)}
                   disabled={isFetching}
                   style={{
                     width: 'auto',

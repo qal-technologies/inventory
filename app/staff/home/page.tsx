@@ -9,14 +9,36 @@ import { Search } from 'lucide-react';
 
 export default function StaffHomePage() {
   const branch = useSessionStore((s) => s.branch);
-  const { data: products, isLoading } = useProducts(
-    branch?.branchId || 'calabar',
-  );
+  const [limitCount] = useState(20);
+  const [lastId, setLastId] = useState<string | undefined>(undefined);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+
+  const {
+    data: productsPage,
+    isLoading,
+    isFetching,
+  } = useProducts(branch?.branchId || 'calabar', limitCount, lastId);
+
+  useMemo(() => {
+    if (productsPage) {
+      setAllProducts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
+        return [...prev, ...newProducts];
+      });
+    }
+  }, [productsPage]);
+
+  // Reset when branch changes
+  useMemo(() => {
+    setAllProducts([]);
+    setLastId(undefined);
+  }, [branch?.branchId]);
+
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
-    if (!products) return [];
-    const inStock = products.filter((p) => p.stock > 0);
+    const inStock = allProducts.filter((p) => p.stock > 0);
     if (!search.trim()) return inStock;
     const q = search.toLowerCase();
     return inStock.filter(
@@ -54,7 +76,7 @@ export default function StaffHomePage() {
       </div>
 
       {/* Products grid */}
-      {isLoading ?
+      {isLoading && allProducts.length === 0 ?
         <div className='products-grid'>
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard
@@ -96,6 +118,29 @@ export default function StaffHomePage() {
           ))}
         </div>
       }
+
+      {/* QUOTA OPTIMIZATION: Simple append pagination */}
+      {productsPage && productsPage.length >= limitCount && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: 20,
+            marginBottom: 80,
+          }}>
+          <button
+            className='btn-primary'
+            onClick={() => setLastId(allProducts[allProducts.length - 1]?.id)}
+            disabled={isFetching}
+            style={{
+              width: 'auto',
+              padding: '0 24px',
+              opacity: isFetching ? 0.7 : 1,
+            }}>
+            {isFetching ? 'Loading...' : 'Load More Products'}
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

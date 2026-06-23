@@ -13,6 +13,12 @@ export function usePushSubscription(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) return;
+
+    // Add a delay before subscribing to avoid aggressive initialization on every load
+    const timeoutId = setTimeout(() => {
+      subscribe();
+    }, 5000); // 5 second delay
+
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
     let cancelled = false;
@@ -55,10 +61,9 @@ export function usePushSubscription(enabled: boolean) {
       }
     }
 
-    subscribe();
-
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [enabled]);
 

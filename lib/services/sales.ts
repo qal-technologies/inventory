@@ -5,10 +5,14 @@ import {
   where,
   limit,
   orderBy,
+  startAfter,
+  doc,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import type { Sale } from '@/lib/firebase/converters';
 import { MOCK_SALES } from './mock_sales';
+import { QUOTA_CONFIG } from '../quota-config';
 
 /**
  * Fetch sales list.
@@ -17,21 +21,42 @@ import { MOCK_SALES } from './mock_sales';
 export async function fetchSales(
   branchId?: string,
   limitCount = 20,
+  lastId?: string,
 ): Promise<Sale[]> {
+  if (QUOTA_CONFIG.USE_MOCK_DATA) {
+    console.log('Using mock sales (quota optimization)');
+    let list = MOCK_SALES as Sale[];
+    if (branchId) {
+      list = list.filter((s) => s.branchId === branchId);
+    }
+    if (lastId) {
+      const idx = list.findIndex(s => s.id === lastId);
+      return list.slice(idx + 1, idx + 1 + limitCount);
+    }
+    return list.slice(0, limitCount);
+  }
+
   // Layer 1: Client Firestore SDK
   try {
     let q;
+    let lastSnapshot;
+    if (lastId) {
+      lastSnapshot = await getDoc(doc(db, 'sales', lastId));
+    }
+
     if (branchId) {
       q = query(
         collection(db, 'sales'),
         where('branchId', '==', branchId),
         orderBy('createdAt', 'desc'),
+        ...(lastSnapshot ? [startAfter(lastSnapshot)] : []),
         limit(limitCount),
       );
     } else {
       q = query(
         collection(db, 'sales'),
         orderBy('createdAt', 'desc'),
+        ...(lastSnapshot ? [startAfter(lastSnapshot)] : []),
         limit(limitCount),
       );
     }
@@ -53,9 +78,12 @@ export async function fetchSales(
 
   // Layer 2: API Route GET /api/sales
   try {
-    let url = '/api/sales';
+    let url = '/api/sales?';
     if (branchId) {
-      url += `?branchId=${encodeURIComponent(branchId)}`;
+      url += `branchId=${encodeURIComponent(branchId)}&`;
+    }
+    if (lastId) {
+      url += `lastId=${lastId}&`;
     }
     const res = await fetch(url);
     if (res.ok) {
@@ -72,7 +100,7 @@ export async function fetchSales(
   console.warn(
     'All live data sources failed (locked quota). Returning mock sales.',
   );
-  return MOCK_SALES.slice(0, limitCount);
+  return (MOCK_SALES as Sale[]).slice(0, limitCount);
 }
 
 export async function createSale(payload: {

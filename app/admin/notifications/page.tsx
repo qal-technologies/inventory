@@ -47,6 +47,7 @@ export default function AdminNotificationsPage() {
       if (!res.ok) throw new Error('Failed to fetch notifications');
       return res.json();
     },
+    staleTime: 60_000, // Fresh for 1 minute
   });
 
   const markReadMut = useMutation({
