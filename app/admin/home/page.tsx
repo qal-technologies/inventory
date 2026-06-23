@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { useSales } from '@/lib/hooks/useSales';
 import { useQuery } from '@tanstack/react-query';
+import { fetchSaleMonths } from '@/lib/services/sales';
 import { motion } from 'framer-motion';
 import {
   TrendingUp,
@@ -21,9 +22,9 @@ export default function AdminHomePage() {
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
   // Single source of truth — no local mirror state
-  const { branchId, month, setBranch, setMonth, getAvailableMonths } = useSessionStore();
+  const { branchId, month, setBranch, setMonth } = useSessionStore();
 
-  const { data: sales, isLoading: salesLoading } = useSales(branchId || undefined);
+  const { data: salesResult, isLoading: salesLoading } = useSales(branchId || undefined, 20, undefined, month || undefined);
 
   // Fetch products (limited) for summary stats
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
@@ -35,23 +36,23 @@ export default function AdminHomePage() {
   // Fetch branches
   const { data: branches } = useBranches();
 
-  // Dynamically extract month options (YYYY-MM) from ALL available months
+  // Fetch available months with sales
+  const { data: availableMonths } = useQuery({
+    queryKey: ['sale-months', branchId],
+    queryFn: () => fetchSaleMonths(branchId || undefined),
+  });
+
   const monthOptions = useMemo(() => {
-    return getAvailableMonths().map((ym) => ({
+    return (availableMonths || []).map((ym) => ({
       value: ym,
       label: formatMonthLabel(ym),
     }));
-  }, [getAvailableMonths]);
+  }, [availableMonths]);
 
   // ── Filtering ─────────────────────────────────────────────────────────────────
   const filteredSales = useMemo(() => {
-    if (!sales) return [];
-    let res = sales;
-    if (month) {
-      res = res.filter((s) => getYearMonth(s.createdAt) === month);
-    }
-    return res;
-  }, [sales, month]);
+    return salesResult?.sales || [];
+  }, [salesResult?.sales]);
 
   const filteredProducts = useMemo(() => {
     if (!products) return [];
@@ -69,12 +70,10 @@ export default function AdminHomePage() {
 
   const todayRevenue = todaySales.reduce((s, x) => s + (x.total || 0), 0);
   const todayProfit = todaySales.reduce((s, x) => s + (x.profit || 0), 0);
-  const totalRevenue = filteredSales.reduce((s, x) => s + (x.total || 0), 0);
-  const totalProfit = filteredSales.reduce((s, x) => s + (x.profit || 0), 0);
-  const totalDiscount = filteredSales.reduce(
-    (s, x) => s + (x.discount || 0),
-    0,
-  );
+
+  const { totalRevenue, totalProfit, totalDiscount, count: totalSalesCount } = useMemo(() => {
+    return salesResult?.stats || { totalRevenue: 0, totalProfit: 0, totalDiscount: 0, count: 0 };
+  }, [salesResult?.stats]);
 
   const avgProfitMargin =
     filteredSales.length > 0 ?
@@ -122,7 +121,7 @@ export default function AdminHomePage() {
     },
     {
       label: 'Total Sales',
-      value: filteredSales.length.toString(),
+      value: totalSalesCount.toString(),
       icon: ShoppingBag,
       color: 'var(--info)',
     },

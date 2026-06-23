@@ -1,5 +1,7 @@
 'use client';
 import { useSales } from '@/lib/hooks/useSales';
+import { useQuery } from '@tanstack/react-query';
+import { fetchSaleMonths } from '@/lib/services/sales';
 import { motion } from 'framer-motion';
 import { Receipt } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
@@ -14,8 +16,7 @@ export default function AdminHistoryPage() {
     branchId,
     setBranch,
     month,
-    setMonth,
-    getAvailableMonths
+    setMonth
   } = useSessionStore();
   const [limitCount] = useState(20);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
@@ -23,49 +24,47 @@ export default function AdminHistoryPage() {
 
   // Pass branch constraint to get accurate limits per branch
   const {
-    data: salesPage,
+    data: salesResult,
     isLoading,
     isFetching,
-  } = useSales(branchId || undefined, limitCount, lastId);
+  } = useSales(branchId || undefined, limitCount, lastId, month || undefined);
 
   useEffect(() => {
-    if (salesPage) {
+    if (salesResult?.sales) {
       setAllSales((prev) => {
         const existingIds = new Set(prev.map((s) => s.id));
-        const newSales = salesPage.filter((s) => !existingIds.has(s.id));
+        const newSales = salesResult.sales.filter((s) => !existingIds.has(s.id));
         return [...prev, ...newSales];
       });
     }
-  }, [salesPage]);
+  }, [salesResult?.sales]);
 
   // Reset when filters change
   useEffect(() => {
     setAllSales([]);
     setLastId(undefined);
-  }, [branchId]);
+  }, [branchId, month]);
+
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
   const { data: branches } = useBranches();
 
-  // Dynamically extract month options from ALL available months
+  // Fetch available months with sales
+  const { data: availableMonths } = useQuery({
+    queryKey: ['sale-months', branchId],
+    queryFn: () => fetchSaleMonths(branchId || undefined),
+  });
+
   const monthOptions = useMemo(() => {
-    return getAvailableMonths().map((ym) => ({
+    return (availableMonths || []).map((ym) => ({
       value: ym,
       label: formatMonthLabel(ym),
     }));
-  }, [getAvailableMonths]);
+  }, [availableMonths]);
 
-  const filtered = useMemo(() => {
-    let res = allSales;
-    if (month) {
-      res = res.filter((s) => getYearMonth(s.createdAt) === month);
-    }
-    return res;
-  }, [allSales, month]);
-
-  const totalRevenue = filtered.reduce((sum, s) => sum + (s.total || 0), 0);
-  const totalProfit = filtered.reduce((sum, s) => sum + (s.profit || 0), 0);
-  const totalDiscount = filtered.reduce((sum, s) => sum + (s.discount || 0), 0);
+  const { totalRevenue, totalProfit, totalDiscount } = useMemo(() => {
+    return salesResult?.stats || { totalRevenue: 0, totalProfit: 0, totalDiscount: 0 };
+  }, [salesResult?.stats]);
 
   return (
     <div>
@@ -213,7 +212,7 @@ export default function AdminHistoryPage() {
                   ))}
                 </tr>
               ))
-            : filtered.length === 0 ?
+            : allSales.length === 0 ?
               <tr>
                 <td
                   colSpan={6}
@@ -227,7 +226,7 @@ export default function AdminHistoryPage() {
                   : 'No sales yet'}
                 </td>
               </tr>
-            : filtered.map((sale, i) => {
+            : allSales.map((sale, i) => {
                 const d = toDate(sale.createdAt);
                 return (
                   <motion.tr
@@ -290,7 +289,7 @@ export default function AdminHistoryPage() {
       </div>
 
       {/* QUOTA OPTIMIZATION: Simple append pagination */}
-      {salesPage && salesPage.length >= limitCount && (
+      {salesResult?.hasMore && (
         <div
           style={{
             display: 'flex',
