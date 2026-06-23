@@ -42,12 +42,12 @@ export default function StaffHomePage() {
     if (!search.trim()) return inStock;
     const q = search.toLowerCase();
     return inStock.filter(
-      (p) =>
+      (p:any) =>
         p.name.toLowerCase().includes(q) ||
         p?.category?.toLowerCase().includes(q) ||
         p?.description?.toLowerCase().includes(q),
     );
-  }, [products, search]);
+  }, [allProducts, search]);
 
   return (
     <motion.div

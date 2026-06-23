@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useAppStore } from '@/store/appStore';
 import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
+import type {SaleItem} from '@/lib/firebase/converters';
 
 export default function AdminHistoryPage() {
   const { branch, setBranch, month, setMonth } = useAppStore();
@@ -250,7 +251,7 @@ export default function AdminHistoryPage() {
                           flexDirection: 'column',
                           gap: 4,
                         }}>
-                        {sale.items.map((it, idx) => (
+                        {sale.items.map((item:SaleItem, idx:number) => (
                           <div
                             key={idx}
                             style={{
@@ -259,7 +260,7 @@ export default function AdminHistoryPage() {
                               gap: 8,
                               fontSize: '0.825rem',
                             }}>
-                            <span>{it.name || 'Product'}</span>
+                            <span>{item.name || 'Product'}</span>
                             <span
                               className='badge badge-pink'
                               style={{
@@ -267,7 +268,7 @@ export default function AdminHistoryPage() {
                                 fontSize: '0.75rem',
                                 fontWeight: 700,
                               }}>
-                              x{it.qty}
+                              x{item.qty}
                             </span>
                           </div>
                         ))}
