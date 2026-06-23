@@ -26,8 +26,8 @@ export default function StaffProfilePage() {
 
   const today = new Date().toDateString();
   const todaySales =
-    sales?.sales?.filter((s) => new Date(s.createdAt).toDateString() === today) || [];
-  const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0);
+    sales?.sales?.filter((s: any) => new Date(s.createdAt).toDateString() === today) || [];
+  const todayRevenue = todaySales.reduce((sum: any, s: any) => sum + s.total, 0);
   const allBranchSales = sales?.stats?.count ?? 0;
 
   const handleLogout = async () => {
