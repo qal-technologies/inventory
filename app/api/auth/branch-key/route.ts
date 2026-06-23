@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { adminDb, getAdminDb } from '@/lib/firebase/admin';
+import { adminDb } from '@/lib/firebase/admin';
 import { getSession, setBranchSession } from '@/lib/auth/session';
 
 export async function POST(req: NextRequest) {
@@ -11,10 +11,6 @@ export async function POST(req: NextRequest) {
     const { branchId, key } = await req.json();
     if (!branchId || !key) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
-    const adminDb = getAdminDb();
-    if(!adminDb) return NextResponse.json({error: 'Server not initialized'}, {status: 500});
-    
-    console.log(adminDb, branchId, key);
     const branchDoc = await adminDb.collection('branches').doc(branchId).get();
     if (!branchDoc.exists) return NextResponse.json({ error: 'Branch not found' }, { status: 404 });
 

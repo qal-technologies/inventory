@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSessionStore } from '@/store/sessionStore';
 import { useProducts } from '@/lib/hooks/useProducts';
 import ProductCard from '@/components/shared/ProductCard';
+import type { Product } from '@/lib/firebase/converters';
 import SkeletonCard from '@/components/shared/SkeletonCard';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
@@ -11,7 +12,7 @@ export default function StaffHomePage() {
   const branch = useSessionStore((s) => s.branch);
   const [limitCount] = useState(100);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
-  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   const {
     data: productsPage,
@@ -38,11 +39,11 @@ export default function StaffHomePage() {
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
-    const inStock = allProducts.filter((p) => p.stock > 0);
+    const inStock = allProducts.filter((p: Product) => p.stock > 0);
     if (!search.trim()) return inStock;
     const q = search.toLowerCase();
     return inStock.filter(
-      (p:any) =>
+      (p: Product) =>
         p.name.toLowerCase().includes(q) ||
         p?.category?.toLowerCase().includes(q) ||
         p?.description?.toLowerCase().includes(q),

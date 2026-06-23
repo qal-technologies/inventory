@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 const tabs = [
   { href: '/staff/home', icon: Home, label: 'Home' },
   { href: '/staff/cart', icon: ShoppingCart, label: 'Cart' },
+  /* QUOTA OPTIMIZATION: Notifications removed entirely for staff */
   { href: '/staff/profile', icon: UserCircle, label: 'Profile' },
 ];
 

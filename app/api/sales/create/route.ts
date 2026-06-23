@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       adminDb.collection('products').doc(item.productId),
     );
 
-    await adminDb.runTransaction(async (tx: any) => {
+    await adminDb.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
       pendingPushes.length = 0; // Clear on retry
       const prodDocs = await Promise.all(
         prodRefs.map((ref: any) => tx.get(ref)),

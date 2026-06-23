@@ -9,6 +9,7 @@ import { toastError } from '@/lib/error-handler';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useProducts } from '@/lib/hooks/useProducts';
 import { useAppStore } from '@/store/appStore';
+import type { Product } from '@/lib/firebase/converters';
 
 type Tab = 'products' | 'add';
 
@@ -38,7 +39,7 @@ export default function AdminInventoryPage() {
 
   const [limitCount] = useState(20);
   const [lastId, setLastId] = useState<string | undefined>(undefined);
-  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   const {
     data: productsPage,
@@ -67,7 +68,7 @@ export default function AdminInventoryPage() {
     if (!search.trim()) return list;
     const q = search.toLowerCase();
     return list.filter(
-      (p) =>
+      (p: Product) =>
         p.name.toLowerCase().includes(q) ||
         p?.category?.toLowerCase().includes(q),
     );
