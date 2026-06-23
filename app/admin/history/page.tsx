@@ -249,7 +249,7 @@ export default function AdminHistoryPage() {
                   ))}
                 </tr>
               ))
-            : !isActuallyLoading && allSales.length === 0 ?
+            : !isActuallyLoading && filteredSales.length === 0 ?
               <tr>
                 <td
                   colSpan={6}
