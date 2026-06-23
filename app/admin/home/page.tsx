@@ -211,11 +211,17 @@ export default function AdminHomePage() {
             disabled={isFetching}
             className='btn-outline'
             style={{
-              height: 40,
-              padding: '0 12px',
+              height: 37,
+              padding: '10px',
+              cursor:'pointer',
+              paddingInline:'18px',
               display: 'flex',
+              border:'1px solid var(--accent-deep)',
+              borderRadius:'18px',
               gap: 6,
               alignItems: 'center',
+              backgroundColor:'var(--accent-light)',
+              color:'black',
             }}>
             <RefreshCw
               size={16}

@@ -53,15 +53,15 @@ export default function AdminProfilePage() {
   });
 
   // Query notifications count
-  const { data: notifications } = useQuery<any[]>({
-    queryKey: ['admin-notifications'],
-    queryFn: async () => {
-      const res = await fetch('/api/notifications');
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
-  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+  // const { data: notifications } = useQuery<any[]>({
+  //   queryKey: ['admin-notifications'],
+  //   queryFn: async () => {
+  //     const res = await fetch('/api/notifications');
+  //     if (!res.ok) return [];
+  //     return res.json();
+  //   },
+  // });
+  // const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
   // Query branches
   const { data: branches, isLoading: branchesLoading } = useQuery<Branch[]>({
@@ -187,7 +187,7 @@ export default function AdminProfilePage() {
           marginBottom: 24,
         }}>
         <h1>Settings & Profile</h1>
-        <Link
+        {/* <Link
           href='/admin/notifications'
           style={{
             position: 'relative',
@@ -225,7 +225,7 @@ export default function AdminProfilePage() {
               {unreadCount}
             </span>
           )}
-        </Link>
+        </Link> */}
       </div>
 
       {/* Tabs list */}
