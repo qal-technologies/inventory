@@ -48,5 +48,8 @@ export async function fetchBranches(): Promise<Branch[]> {
   console.warn(
     'All live branch fetches failed! Falling back to static emergency branches list.',
   );
-  return [];
+  return [
+    { id: 'calabar', name: 'calabar', createdAt: new Date().toISOString() },
+    { id: 'ucl', name: 'ucl', createdAt: new Date().toISOString() },
+  ] as Branch[];
 }

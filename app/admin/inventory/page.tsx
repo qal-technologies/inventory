@@ -36,7 +36,12 @@ export default function AdminInventoryPage() {
     return found?.id;
   }, [branch, branches]);
 
-  const { data: products, isLoading } = useProducts(branchId);
+  const [limitCount, setLimitCount] = useState(20);
+  const {
+    data: products,
+    isLoading,
+    isFetching,
+  } = useProducts(branchId, limitCount);
 
   const filtered = useMemo(() => {
     if (!products) return [];
@@ -48,14 +53,11 @@ export default function AdminInventoryPage() {
     return list.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
-        p?.category?.toLowerCase().includes(q)
+        p?.category?.toLowerCase().includes(q),
     );
   }, [products, search]);
 
-  const lowStockProducts = useMemo(() => {
-    if (!products) return [];
-    return products.filter((p) => p.stock <= (p.reorder || 5));
-  }, [products]);
+  // QUOTA OPTIMIZATION: lowStockProducts computation removed
 
   // Delete product
   const deleteMut = useMutation({
@@ -109,31 +111,7 @@ export default function AdminInventoryPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}>
-
-            {/* Low stock alerts section */}
-            {lowStockProducts.length > 0 && (
-              <div
-                className="glass"
-                style={{
-                  padding: 12,
-                  border: '0.5px solid var(--danger)',
-                  background: 'rgba(239, 68, 68, 0.05)',
-                  marginBottom: 16,
-                  borderRadius: 'var(--radius-lg)'
-                }}
-              >
-                <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--danger)', margin: 0, marginBottom: 8, fontSize: '0.95rem' }}>
-                  <AlertTriangle size={18} /> {lowStockProducts.length} Product(s) require restock alert
-                </h4>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {lowStockProducts.map(p => (
-                    <span key={p.id} className="badge badge-danger" style={{ fontSize: '0.75rem' }}>
-                      {p.name} ({p.stock} left)
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* QUOTA OPTIMIZATION: Low stock alerts section removed from top of inventory */}
 
             {/* Search and filter toolbar */}
             <div
@@ -142,9 +120,8 @@ export default function AdminInventoryPage() {
                 alignItems: 'center',
                 gap: 12,
                 marginBottom: 16,
-                flexWrap: 'wrap'
-              }}
-            >
+                flexWrap: 'wrap',
+              }}>
               <div
                 className='search-wrap'
                 style={{ flex: 1, minWidth: 260, maxWidth: 400, margin: 0 }}>
@@ -161,14 +138,20 @@ export default function AdminInventoryPage() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <select
-                  className="input-base"
-                  style={{ width: 'auto', minWidth: 170, height: 40, padding: '0 10px' }}
+                  className='input-base'
+                  style={{
+                    width: 'auto',
+                    minWidth: 170,
+                    height: 40,
+                    padding: '0 10px',
+                  }}
                   value={branch || ''}
-                  onChange={(e) => setBranch(e.target.value || null)}
-                >
-                  <option value="">All Branches</option>
+                  onChange={(e) => setBranch(e.target.value || null)}>
+                  <option value=''>All Branches</option>
                   {branches?.map((b) => (
-                    <option key={b.id} value={b.name}>
+                    <option
+                      key={b.id}
+                      value={b.name}>
                       {b.name}
                     </option>
                   ))}
@@ -342,6 +325,28 @@ export default function AdminInventoryPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* QUOTA OPTIMIZATION: Simple append pagination */}
+            {products && products.length >= limitCount && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  marginTop: 20,
+                }}>
+                <button
+                  className='btn-primary'
+                  onClick={() => setLimitCount((prev) => prev + 20)}
+                  disabled={isFetching}
+                  style={{
+                    width: 'auto',
+                    padding: '0 24px',
+                    opacity: isFetching ? 0.7 : 1,
+                  }}>
+                  {isFetching ? 'Loading...' : 'Load More Products'}
+                </button>
+              </div>
+            )}
           </motion.div>
         : <AddProductForm
             key='add'

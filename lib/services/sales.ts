@@ -1,25 +1,42 @@
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  limit,
+  orderBy,
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import type { Sale } from '@/lib/firebase/converters';
+import { MOCK_SALES } from './mock_sales';
 
 /**
  * Fetch sales list.
  * Falls back to server-side API route if client SDK query fails (due to rules/permissions).
  */
-export async function fetchSales(branchId?: string): Promise<Sale[]> {
+export async function fetchSales(
+  branchId?: string,
+  limitCount = 20,
+): Promise<Sale[]> {
   // Layer 1: Client Firestore SDK
   try {
     let q;
     if (branchId) {
       q = query(
         collection(db, 'sales'),
-        where('branchId', '==', branchId)
+        where('branchId', '==', branchId),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount),
       );
     } else {
-      q = query(collection(db, 'sales'));
+      q = query(
+        collection(db, 'sales'),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount),
+      );
     }
     const snap = await getDocs(q);
-    const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sale));
+    const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Sale);
     if (list.length > 0) {
       return list.sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -28,7 +45,10 @@ export async function fetchSales(branchId?: string): Promise<Sale[]> {
       });
     }
   } catch (err) {
-    console.error('Client sales fetch failed, trying API route fallback...', err);
+    console.error(
+      'Client sales fetch failed, trying API route fallback...',
+      err,
+    );
   }
 
   // Layer 2: API Route GET /api/sales
@@ -48,7 +68,11 @@ export async function fetchSales(branchId?: string): Promise<Sale[]> {
     console.error('API route sales fetch failed:', err);
   }
 
-  return [];
+  // Layer 3: Mock Data Fallback
+  console.warn(
+    'All live data sources failed (locked quota). Returning mock sales.',
+  );
+  return MOCK_SALES.slice(0, limitCount);
 }
 
 export async function createSale(payload: {

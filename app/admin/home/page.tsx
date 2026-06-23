@@ -30,7 +30,7 @@ export default function AdminHomePage() {
   // Fetch all products to check stock alerts
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ['admin-products'],
-    queryFn: fetchAllProducts,
+    queryFn: () => fetchAllProducts(),
   });
 
   // Fetch branches
@@ -123,10 +123,7 @@ export default function AdminHomePage() {
       .slice(0, 5);
   }, [filteredSales]);
 
-  // Restock alerts (uses correctly branch-filtered products)
-  const restockAlerts = useMemo(() => {
-    return filteredProducts.filter((p) => p.stock <= (p.reorder || 5));
-  }, [filteredProducts]);
+  // QUOTA OPTIMIZATION: Restock alerts removed from dashboard to prevent full product scans on every load.
 
   const stats = [
     {
@@ -161,16 +158,7 @@ export default function AdminHomePage() {
     return b?.name || id;
   };
 
-  // Fetch notifications
-  const { data: notifications } = useQuery<any[]>({
-    queryKey: ['admin-notifications'],
-    queryFn: async () => {
-      const res = await fetch('/api/notifications');
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
-  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+  // QUOTA OPTIMIZATION: Notification fetching removed from layout/header to prevent polling on mount.
 
   const recentSales = filteredSales.slice(0, 5);
   const isLoading = salesLoading || productsLoading;
@@ -193,98 +181,57 @@ export default function AdminHomePage() {
           </p>
         </div>
 
-        {/* Filters + Bell */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link
-            href='/admin/notifications'
+        {/* Filter Toolbar (Bell icon removed for quota optimization) */}
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            overflowX: 'auto',
+            scrollBehavior: 'smooth',
+          }}>
+          {/* Branch filter — value is always the exact store value, "" means All */}
+          <select
+            className='input-base'
             style={{
-              position: 'relative',
-              width: 40,
+              width: 'auto',
+              minWidth: 150,
               height: 40,
-              borderRadius: 'var(--radius-full)',
-              background: 'rgba(255,255,255,0.7)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}>
-            <Bell
-              size={20}
-              color='var(--accent-deep)'
-            />
-            {unreadCount > 0 && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: -2,
-                  right: -2,
-                  background: 'var(--danger)',
-                  color: '#fff',
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                {unreadCount}
-              </span>
-            )}
-          </Link>
+              padding: '0 10px',
+            }}
+            value={branch || ''}
+            onChange={(e) => setBranch(e.target.value || null)}>
+            <option value=''>All Branches</option>
+            {branchNames.map((b) => (
+              <option
+                key={b}
+                value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
 
-          <div
+          {/* Month filter — value is always the "YYYY-MM" store value, "" means All */}
+          <select
+            className='input-base'
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              overflowX: 'auto',
-              scrollBehavior: 'smooth',
-            }}>
-            {/* Branch filter — value is always the exact store value, "" means All */}
-            <select
-              className='input-base'
-              style={{
-                width: 'auto',
-                minWidth: 150,
-                height: 40,
-                padding: '0 10px',
-              }}
-              value={branch || ''}
-              onChange={(e) => setBranch(e.target.value || null)}>
-              <option value=''>All Branches</option>
-              {branchNames.map((b) => (
-                <option
-                  key={b}
-                  value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-
-            {/* Month filter — value is always the "YYYY-MM" store value, "" means All */}
-            <select
-              className='input-base'
-              style={{
-                width: 'auto',
-                minWidth: 160,
-                height: 40,
-                padding: '0 10px',
-              }}
-              value={month || ''}
-              onChange={(e) => setMonth(e.target.value || null)}>
-              <option value=''>All Months</option>
-              {monthOptions.map((m) => (
-                <option
-                  key={m.value}
-                  value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
+              width: 'auto',
+              minWidth: 160,
+              height: 40,
+              padding: '0 10px',
+            }}
+            value={month || ''}
+            onChange={(e) => setMonth(e.target.value || null)}>
+            <option value=''>All Months</option>
+            {monthOptions.map((m) => (
+              <option
+                key={m.value}
+                value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -417,70 +364,7 @@ export default function AdminHomePage() {
             </div>
           )}
 
-          {/* Low Stock Alerts */}
-          {restockAlerts.length > 0 && (
-            <div
-              className='glass'
-              style={{ padding: 10 }}>
-              <h3
-                style={{
-                  marginBottom: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  color: 'var(--danger)',
-                }}>
-                <AlertTriangle
-                  size={18}
-                  color='var(--danger)'
-                />{' '}
-                Low Stock Alerts
-              </h3>
-              {isLoading ?
-                <div
-                  className='skeleton'
-                  style={{ height: 180 }}
-                />
-              : <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
-                    maxHeight: 200,
-                    overflowY: 'auto',
-                  }}>
-                  {restockAlerts.map((p) => (
-                    <div
-                      key={p.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '6px 0',
-                        borderBottom: '1px solid var(--border)',
-                      }}>
-                      <div>
-                        <p style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                          {p.name}
-                        </p>
-                        <p
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-muted)',
-                          }}>
-                          Branch: {getBranchName(p.branchId)}
-                        </p>
-                      </div>
-                      <span
-                        className={`badge ${p.stock === 0 ? 'badge-danger' : 'badge-warning'}`}>
-                        {p.stock} left (reorder at {p.reorder || 5})
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              }
-            </div>
-          )}
+          {/* QUOTA OPTIMIZATION: Low Stock Alerts section completely removed as agreed */}
         </div>
 
         {/* Row 2: Recent Sales & Business Summary */}

@@ -2,18 +2,23 @@
 import { useSales } from '@/lib/hooks/useSales';
 import { motion } from 'framer-motion';
 import { Receipt, Filter } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useAppStore } from '@/store/appStore';
 import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
 
 export default function AdminHistoryPage() {
-  const { data: sales, isLoading } = useSales();
-  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
-
-  // Single source of truth — no local mirror state
   const { branch, setBranch, month, setMonth } = useAppStore();
+  const [limitCount, setLimitCount] = useState(20);
+
+  // Pass branch constraint to get accurate limits per branch
+  const {
+    data: sales,
+    isLoading,
+    isFetching,
+  } = useSales(branch || undefined, limitCount);
+  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
   const { data: branches } = useBranches();
   const branchNames = useMemo(() => {
@@ -62,19 +67,29 @@ export default function AdminHistoryPage() {
           gap: 12,
         }}>
         <h1 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Receipt size={24} color='var(--accent-deep)' /> Sales History
+          <Receipt
+            size={24}
+            color='var(--accent-deep)'
+          />{' '}
+          Sales History
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-
           {/* Branch filter */}
           <select
             className='input-base'
-            style={{ width: 'auto', minWidth: 150, height: 40, padding: '0 10px' }}
+            style={{
+              width: 'auto',
+              minWidth: 150,
+              height: 40,
+              padding: '0 10px',
+            }}
             value={branch || ''}
             onChange={(e) => setBranch(e.target.value || null)}>
             <option value=''>All Branches</option>
             {branchNames.map((b) => (
-              <option key={b} value={b}>
+              <option
+                key={b}
+                value={b}>
                 {b}
               </option>
             ))}
@@ -83,12 +98,19 @@ export default function AdminHistoryPage() {
           {/* Month filter */}
           <select
             className='input-base'
-            style={{ width: 'auto', minWidth: 160, height: 40, padding: '0 10px' }}
+            style={{
+              width: 'auto',
+              minWidth: 160,
+              height: 40,
+              padding: '0 10px',
+            }}
             value={month || ''}
             onChange={(e) => setMonth(e.target.value || null)}>
             <option value=''>All Months</option>
             {monthOptions.map((m) => (
-              <option key={m.value} value={m.value}>
+              <option
+                key={m.value}
+                value={m.value}>
                 {m.label}
               </option>
             ))}
@@ -106,22 +128,40 @@ export default function AdminHistoryPage() {
           scrollBehavior: 'smooth',
         }}>
         <div className='stat-card'>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Revenue</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Total Revenue
+          </p>
           <p style={{ fontSize: '1.5rem', fontWeight: 800, marginInline: 5 }}>
             {currency}
             {totalRevenue.toLocaleString()}
           </p>
         </div>
         <div className='stat-card'>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Profit</p>
-          <p style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)', marginInline: 5 }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Total Profit
+          </p>
+          <p
+            style={{
+              fontSize: '1.5rem',
+              fontWeight: 800,
+              color: 'var(--success)',
+              marginInline: 5,
+            }}>
             {currency}
             {totalProfit.toLocaleString()}
           </p>
         </div>
         <div className='stat-card'>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Discounts Given</p>
-          <p style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--danger)', marginInline: 5 }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Discounts Given
+          </p>
+          <p
+            style={{
+              fontSize: '1.5rem',
+              fontWeight: 800,
+              color: 'var(--danger)',
+              marginInline: 5,
+            }}>
             {currency}
             {totalDiscount.toLocaleString()}
           </p>
@@ -129,7 +169,9 @@ export default function AdminHistoryPage() {
       </div>
 
       {/* Sales table */}
-      <div className='glass' style={{ padding: 0, overflow: 'auto' }}>
+      <div
+        className='glass'
+        style={{ padding: 0, overflow: 'auto' }}>
         <table className='inv-table'>
           <thead>
             <tr>
@@ -147,7 +189,10 @@ export default function AdminHistoryPage() {
                 <tr key={i}>
                   {Array.from({ length: 6 }).map((_, j) => (
                     <td key={j}>
-                      <div className='skeleton' style={{ height: 16, width: '80%' }} />
+                      <div
+                        className='skeleton'
+                        style={{ height: 16, width: '80%' }}
+                      />
                     </td>
                   ))}
                 </tr>
@@ -156,8 +201,14 @@ export default function AdminHistoryPage() {
               <tr>
                 <td
                   colSpan={6}
-                  style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-                  {branch || month ? 'No sales found for the selected filters' : 'No sales yet'}
+                  style={{
+                    textAlign: 'center',
+                    padding: 40,
+                    color: 'var(--text-muted)',
+                  }}>
+                  {branch || month ?
+                    'No sales found for the selected filters'
+                  : 'No sales yet'}
                 </td>
               </tr>
             : filtered.map((sale, i) => {
@@ -172,15 +223,34 @@ export default function AdminHistoryPage() {
                       {d ? format(d, 'MMM d, yyyy') : '—'}
                     </td>
                     <td>{d ? format(d, 'h:mm a') : '—'}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--accent-deep)' }}>
+                    <td
+                      style={{ fontWeight: 600, color: 'var(--accent-deep)' }}>
                       {sale.branchName || 'General'}
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 4,
+                        }}>
                         {sale.items.map((it, idx) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.825rem' }}>
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              fontSize: '0.825rem',
+                            }}>
                             <span>{it.name || 'Product'}</span>
-                            <span className='badge badge-pink' style={{ padding: '2px 6px', fontSize: '0.75rem', fontWeight: 700 }}>
+                            <span
+                              className='badge badge-pink'
+                              style={{
+                                padding: '2px 6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                              }}>
                               x{it.qty}
                             </span>
                           </div>
