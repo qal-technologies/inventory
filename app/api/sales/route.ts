@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get('branchId');
     const month = searchParams.get('month'); // YYYY-MM
-    const limitCount = parseInt(searchParams.get('limit') || '20');
+    const limitCount = Math.min(parseInt(searchParams.get('limit') || '20'), 5000);
     const lastId = searchParams.get('lastId');
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,8 +31,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Clone for stats (without limit/pagination)
-    // Limits the stats query to the last 1000 items to avoid full collection scan if it grows too large
-    const statsQuery = baseQuery.limit(1000);
+    // Limits the stats query to the last 5000 items to avoid full collection scan if it grows too large
+    const statsQuery = baseQuery.limit(5000);
 
     // Robust query for sales
     let sales = [];

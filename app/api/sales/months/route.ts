@@ -19,12 +19,10 @@ export async function GET(req: NextRequest) {
       q = q.where('branchId', '==', branchId);
     }
 
-    // May 2026 boundary as requested — cap at 100 docs (enough to cover all months)
-    const startBoundary = '2026-05-01T00:00:00.000Z';
+    // Dynamic month fetching without boundary — cap at 1000 docs to cover many months
     q = q
-      .where('createdAt', '>=', startBoundary)
       .orderBy('createdAt', 'desc')
-      .limit(100);
+      .limit(1000);
 
     const snap = await q.select('createdAt').get();
 

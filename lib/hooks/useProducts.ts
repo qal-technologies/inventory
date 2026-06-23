@@ -14,13 +14,29 @@ import { productCache } from '@/lib/cache/productCache';
 export function useProducts(
   branchId?: string,
   limitCount: number = 20,
-  lastId?: string
+  lastId?: string,
+  useFullCache: boolean = false
 ) {
   const cacheKey = branchId ? `products:${branchId}` : 'products:all';
 
   return useQuery({
-    queryKey: ['products', branchId, limitCount, lastId],
+    queryKey: ['products', branchId, limitCount, lastId, useFullCache],
     queryFn: async () => {
+      if (useFullCache) {
+        const cached = productCache.get(cacheKey);
+        if (cached) return cached;
+
+        // If not in cache and requesting full collection, fetch a large amount
+        const data = branchId
+          ? await fetchProducts(branchId, 5000)
+          : await fetchAllProducts(5000);
+
+        if (data.length > 0) {
+          productCache.set(cacheKey, data);
+        }
+        return data;
+      }
+
       // Check client cache first (only for initial fetch, not pagination)
       if (!lastId) {
         const cached = productCache.get(cacheKey);

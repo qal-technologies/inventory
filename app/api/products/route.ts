@@ -20,13 +20,13 @@ export async function GET(req: NextRequest) {
     const branchId = searchParams.get('branchId');
     const limitCount = Math.min(
       parseInt(searchParams.get('limit') || '20'),
-      100,
-    ); // Cap at 100
+      5000,
+    ); // Cap at 5000 for full collection caching
     const lastId = searchParams.get('lastId');
 
     // Validation
-    if (limitCount < 1 || limitCount > 100) {
-      throw new ValidationError('limit must be between 1 and 100');
+    if (limitCount < 1 || limitCount > 5000) {
+      throw new ValidationError('limit must be between 1 and 5000');
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

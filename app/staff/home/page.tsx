@@ -12,15 +12,11 @@ import Link from 'next/link';
 
 export default function StaffHomePage() {
   const { branchId, branchName } = useSessionStore();
-  const [limitCount] = useState(100);
-  const [lastId, setLastId] = useState<string | undefined>(undefined);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [fullCollection, setFullCollection] = useState<Product[]>([]);
 
   // Search state with debouncing
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Handle search debouncing
   useEffect(() => {
@@ -31,72 +27,51 @@ export default function StaffHomePage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Fetch initial/paginated products
+  // Fetch all products for the branch with 10-minute update via staleTime/gcTime
   const {
-    data: productsPage,
+    data: productsData,
     isLoading,
     isFetching,
-  } = useProducts(branchId || undefined, limitCount, lastId);
+    refetch,
+  } = useProducts(branchId || undefined, 5000, undefined, true);
 
-  // Server-side search (only when search is active)
-  const { data: searchResults, isLoading: isSearching } = useProductSearch(
-    branchId || undefined,
-
-    debouncedSearch,
-    debouncedSearch.trim().length > 0
-  );
-
-  // Accumulate products from pagination
+  // Automatic refresh every 10 minutes
   useEffect(() => {
-    if (productsPage) {
-      if (!lastId) {
-        setAllProducts(productsPage);
-      } else {
-        setAllProducts((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id));
-          const newProducts = productsPage.filter((p) => !existingIds.has(p.id));
-          if (newProducts.length === 0) return prev;
-          return [...prev, ...newProducts];
-        });
-      }
+    const interval = setInterval(() => {
+      refetch();
+    }, 10 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [refetch]);
+
+  useEffect(() => {
+    if (productsData) {
+      setFullCollection(productsData);
     }
-  }, [productsPage, lastId]);
+  }, [productsData]);
 
   // Reset when branch changes
   useEffect(() => {
-    setLastId(undefined);
     setSearch('');
   }, [branchId]);
 
-  // Filter for display (use search results if searching, otherwise all products)
+  // Filter for display (local search over fullCollection)
   const filtered = useMemo(() => {
-    // If search is active, use server-side search results
-    if (debouncedSearch.trim().length > 0) {
-      return searchResults?.filter((p) => p.stock > 0) || []; 
+    const stocked = fullCollection.filter((p) => p.stock > 0 && p.branchId === branchId);
+
+    if (!debouncedSearch.trim()) {
+      return stocked.slice(0, 30); // Show top 30
     }
 
-    // Otherwise use loaded products
-    const stockedProducts = allProducts.filter((p) => p.stock > 0);
-    return stockedProducts; 
-  }, [allProducts, searchResults, search]);
+    const q = debouncedSearch.toLowerCase();
+    return stocked.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p?.category?.toLowerCase().includes(q) ||
+        p?.description?.toLowerCase().includes(q)
+    );
+  }, [fullCollection, debouncedSearch, branchId]);
 
-  // Handle load more
-  const handleLoadMore = useCallback(() => {
-    if (!isLoadingMore && allProducts.length > 0) {
-      setIsLoadingMore(true);
-      setLastId(allProducts[allProducts.length - 1]?.id);
-    }
-  }, [allProducts, isLoadingMore]);
-
-  // Update loading state when fetching completes
-  useEffect(() => {
-    if (!isFetching) {
-      setIsLoadingMore(false);
-    }
-  }, [isFetching]);
-
-  const isLoading_search = debouncedSearch.trim().length > 0 && isSearching;
-  const showSkeleton = (isLoading || isLoading_search) && filtered.length === 0;
+  const showSkeleton = isLoading && filtered.length === 0;
 
   return (
     <motion.div
@@ -126,16 +101,6 @@ export default function StaffHomePage() {
           // REMOVED: disabled={isLoading_search} to prevent focus loss
           aria-label='Search products'
         />
-        {isLoading_search && (
-          <div
-            style={{
-              marginLeft: '8px',
-              fontSize: '0.8rem',
-              color: 'var(--text-muted)',
-            }}>
-            Searching...
-          </div>
-        )}
       </div>
 
       {/* Loading Skeleton */}
@@ -222,7 +187,7 @@ export default function StaffHomePage() {
               `No products match "${search}"`
             : 'No products found at this branch'}
           </p>
-          {search && allProducts.length > 0 && (
+          {search && fullCollection.length > 0 && (
             <p
               style={{
                 fontSize: '0.85rem',
@@ -244,8 +209,8 @@ export default function StaffHomePage() {
         </div>
       }
 
-      {/* Load More Button - Only show when not searching */}
-      {!search.trim() && filtered.length >= limitCount && (
+      {/* Load More Button - Commented out */}
+      {/* {!search.trim() && filtered.length >= limitCount && (
         <div
           style={{
             display: 'flex',
@@ -270,10 +235,10 @@ export default function StaffHomePage() {
             {isLoadingMore ? 'Loading...' : 'Load More Products'}
           </button>
         </div>
-      )}
+      )} */}
 
       {/* No real-time data error state */}
-      {!isLoading && !isFetching && allProducts.length === 0 && !search && (
+      {!isLoading && !isFetching && fullCollection.length === 0 && !search && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

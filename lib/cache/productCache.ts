@@ -115,4 +115,4 @@ class TTLCache<T extends { id: string }> {
   }
 }
 
-export const productCache = new TTLCache<Product>(5 * 60 * 1000);
+export const productCache = new TTLCache<Product>(10 * 60 * 1000); // 10 minute TTL as requested
