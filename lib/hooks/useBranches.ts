@@ -6,5 +6,6 @@ export function useBranches() {
   return useQuery({
     queryKey: ['branches'],
     queryFn: fetchBranches,
+    staleTime: 3600_000, // Branches rarely change, cache for 1 hour
   });
 }

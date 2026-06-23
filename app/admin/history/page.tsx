@@ -11,13 +11,31 @@ import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
 export default function AdminHistoryPage() {
   const { branch, setBranch, month, setMonth } = useAppStore();
   const [limitCount, setLimitCount] = useState(20);
+  const [lastId, setLastId] = useState<string | undefined>(undefined);
+  const [allSales, setAllSales] = useState<any[]>([]);
 
   // Pass branch constraint to get accurate limits per branch
   const {
-    data: sales,
+    data: salesPage,
     isLoading,
     isFetching,
-  } = useSales(branch || undefined, limitCount);
+  } = useSales(branch || undefined, limitCount, lastId);
+
+  useMemo(() => {
+    if (salesPage) {
+      setAllSales((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        const newSales = salesPage.filter((s) => !existingIds.has(s.id));
+        return [...prev, ...newSales];
+      });
+    }
+  }, [salesPage]);
+
+  // Reset when filters change
+  useMemo(() => {
+    setAllSales([]);
+    setLastId(undefined);
+  }, [branch]);
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
   const { data: branches } = useBranches();
@@ -28,20 +46,18 @@ export default function AdminHistoryPage() {
 
   // Dynamically extract month options from ALL sangles (not filtered)
   const monthOptions = useMemo(() => {
-    if (!sales) return [];
     const set = new Set<string>();
-    sales.forEach((s) => {
+    allSales.forEach((s) => {
       const ym = getYearMonth(s.createdAt);
       if (ym) set.add(ym);
     });
     return [...set]
       .sort((a, b) => b.localeCompare(a))
       .map((ym) => ({ value: ym, label: formatMonthLabel(ym) }));
-  }, [sales]);
+  }, [allSales]);
 
   const filtered = useMemo(() => {
-    if (!sales) return [];
-    let res = sales;
+    let res = allSales;
     if (branch) {
       res = res.filter((s) => s.branchName === branch);
     }
@@ -49,7 +65,7 @@ export default function AdminHistoryPage() {
       res = res.filter((s) => getYearMonth(s.createdAt) === month);
     }
     return res;
-  }, [sales, branch, month]);
+  }, [allSales, branch, month]);
 
   const totalRevenue = filtered.reduce((sum, s) => sum + (s.total || 0), 0);
   const totalProfit = filtered.reduce((sum, s) => sum + (s.profit || 0), 0);
@@ -272,6 +288,29 @@ export default function AdminHistoryPage() {
           </tbody>
         </table>
       </div>
+
+      {/* QUOTA OPTIMIZATION: Simple append pagination */}
+      {salesPage && salesPage.length >= limitCount && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: 20,
+            marginBottom: 40,
+          }}>
+          <button
+            className='btn-primary'
+            onClick={() => setLastId(allSales[allSales.length - 1]?.id)}
+            disabled={isFetching}
+            style={{
+              width: 'auto',
+              padding: '0 24px',
+              opacity: isFetching ? 0.7 : 1,
+            }}>
+            {isFetching ? 'Loading...' : 'Load More Sales'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

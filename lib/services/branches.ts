@@ -1,6 +1,7 @@
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import type { Branch } from '@/lib/firebase/converters';
+import { QUOTA_CONFIG } from '../quota-config';
 
 /**
  * Robust fetch for branches with three layers of fallback:
@@ -9,6 +10,14 @@ import type { Branch } from '@/lib/firebase/converters';
  * 3. Stable static hardcoded array fallback so the application NEVER crashes or locks.
  */
 export async function fetchBranches(): Promise<Branch[]> {
+  if (QUOTA_CONFIG.USE_MOCK_DATA) {
+    console.log('Using mock branches (quota optimization)');
+    return [
+      { id: 'calabar', name: 'calabar', createdAt: new Date().toISOString() },
+      { id: 'ucl', name: 'ucl', createdAt: new Date().toISOString() },
+    ] as Branch[];
+  }
+
   // Layer 1: Try Client-side Firestore SDK
   try {
     const q = query(collection(db, 'branches'), orderBy('name', 'asc'));

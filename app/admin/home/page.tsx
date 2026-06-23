@@ -27,10 +27,11 @@ export default function AdminHomePage() {
   // Single source of truth — no local mirror state
   const { branch, month, setBranch, setMonth } = useAppStore();
 
-  // Fetch all products to check stock alerts
+  // Fetch products (limited) for summary stats
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
-    queryKey: ['admin-products'],
-    queryFn: () => fetchAllProducts(),
+    queryKey: ['admin-products', 20],
+    queryFn: () => fetchAllProducts(20),
+    staleTime: 600_000,
   });
 
   // Fetch branches

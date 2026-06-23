@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 const tabs = [
   { href: '/staff/home', icon: Home, label: 'Home' },
   { href: '/staff/cart', icon: ShoppingCart, label: 'Cart' },
-  // QUOTA OPTIMIZATION: Notifications tab removed from staff UI per user request
+  /* QUOTA OPTIMIZATION: Notifications removed entirely for staff */
   { href: '/staff/profile', icon: UserCircle, label: 'Profile' },
 ];
 
@@ -34,6 +34,9 @@ export default function StaffLayout({
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (!_hasHydrated) return;
 
     if (!isLogin) {
@@ -43,7 +46,7 @@ export default function StaffLayout({
         router.replace('/staff/select-branch');
       }
     }
-  }, [user, branch, pathname, isLogin, isSelectBranch, router, _hasHydrated]);
+  }, [user, branch, isLogin, isSelectBranch, router, _hasHydrated]);
 
   if (!mounted || !_hasHydrated) {
     return (

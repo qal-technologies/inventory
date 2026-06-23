@@ -26,6 +26,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (!_hasHydrated) return;
 
     if (!user) {

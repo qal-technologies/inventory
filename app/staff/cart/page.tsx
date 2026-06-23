@@ -76,7 +76,7 @@ export default function StaffCartPage() {
       setCheckoutOpen(false);
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['sales'] });
-      queryClient.invalidateQueries({ queryKey: ['staff-notifications'] });
+      /* QUOTA OPTIMIZATION: staff-notifications invalidated removed as feature is deleted */
       toast.success('Sale completed! 🎉');
     } catch (err: unknown) {
       toastError(err);
