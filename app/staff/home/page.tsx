@@ -98,7 +98,6 @@ export default function StaffHomePage() {
           onChange={(e) => {
             setSearch(e.target.value);
           }}
-          // REMOVED: disabled={isLoading_search} to prevent focus loss
           aria-label='Search products'
         />
       </div>
@@ -208,34 +207,6 @@ export default function StaffHomePage() {
           ))}
         </div>
       }
-
-      {/* Load More Button - Commented out */}
-      {/* {!search.trim() && filtered.length >= limitCount && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: 30,
-            marginBottom: 80,
-          }}>
-          <button
-            className='btn-primary'
-            onClick={handleLoadMore}
-            disabled={isLoadingMore || isFetching}
-            style={{
-              width: 'auto',
-              padding: '10px',
-              paddingInline: '20px',
-              border: 'none',
-              borderRadius: '18px',
-              opacity: isLoadingMore || isFetching ? 0.6 : 1,
-              cursor: isLoadingMore || isFetching ? 'not-allowed' : 'pointer',
-            }}
-            aria-busy={isLoadingMore}>
-            {isLoadingMore ? 'Loading...' : 'Load More Products'}
-          </button>
-        </div>
-      )} */}
 
       {/* No real-time data error state */}
       {!isLoading && !isFetching && fullCollection.length === 0 && !search && (
