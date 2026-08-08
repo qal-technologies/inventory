@@ -41,8 +41,13 @@ export default function AdminInventoryPage() {
     return b?.name || id;
   };
 
-  const [limitCount] = useState(30);
   const [fullCollection, setFullCollection] = useState<Product[]>([]);
+  const [visibleCount, setVisibleCount] = useState(30);
+
+  // Reset pagination when filter or search changes
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [debouncedSearch, branchId]);
 
   const {
     data: productsData,
@@ -57,7 +62,7 @@ export default function AdminInventoryPage() {
     }
   }, [productsData]);
 
-  const filtered = useMemo(() => {
+  const fullFiltered = useMemo(() => {
     let list = fullCollection;
 
     // Robust branch filter
@@ -70,7 +75,7 @@ export default function AdminInventoryPage() {
       list = [...list].sort((a, b) => (getBranchName(a.branchId) || '').localeCompare(getBranchName(b.branchId) || ''));
     }
 
-    if (!debouncedSearch.trim()) return list.slice(0, 30); // Show only 30 by default
+    if (!debouncedSearch.trim()) return list;
 
     const q = debouncedSearch.toLowerCase();
     return list.filter(
@@ -80,6 +85,10 @@ export default function AdminInventoryPage() {
         getBranchName(p.branchId).toLowerCase().includes(q)
     );
   }, [fullCollection, debouncedSearch, branchId, branches]);
+
+  const filtered = useMemo(() => {
+    return fullFiltered.slice(0, visibleCount);
+  }, [fullFiltered, visibleCount]);
 
   // QUOTA OPTIMIZATION: lowStockProducts computation removed
 
@@ -365,32 +374,38 @@ export default function AdminInventoryPage() {
               </table>
             </div>
 
-            {/* QUOTA OPTIMIZATION: Simple append pagination commented out as requested */}
-            {/* {productsPage && productsPage.length >= limitCount && (
+            {fullFiltered.length > visibleCount && (
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'center',
-                  marginTop: 20,
+                  marginTop: 28,
+                  marginBottom: 48,
                 }}>
                 <button
-                  className='btn-primary'
-                  onClick={() =>
-                    setLastId(allProducts[allProducts.length - 1]?.id)
-                  }
-                  disabled={isFetching}
+                  onClick={() => setVisibleCount((prev) => prev + 30)}
                   style={{
                     width: 'auto',
-                    padding: '10px',
-                    paddingInline: '20px',
+                    minWidth: 160,
+                    padding: '12px 28px',
                     border: 'none',
-                    borderRadius: '12px',
-                    opacity: isFetching ? 0.7 : 1,
+                    borderRadius: '24px',
+                    backgroundColor: 'var(--accent-deep)',
+                    color: '#ffffff',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(217, 111, 135, 0.3)',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
                   }}>
-                  {isFetching ? 'Loading...' : 'Load More Products'}
+                  See More Products
                 </button>
               </div>
-            )} */}
+            )}
           </motion.div>
         : <AddProductForm
             key='add'

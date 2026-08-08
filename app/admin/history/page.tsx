@@ -8,7 +8,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useBranches } from '@/lib/hooks/useBranches';
 import { useSessionStore } from '@/store/sessionStore';
-import { getYearMonth, formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
+import { formatMonthLabel, toDate } from '@/lib/utils/dateUtils';
 import type { Sale, SaleItem } from '@/lib/firebase/converters';
 
 export default function AdminHistoryPage() {
@@ -18,24 +18,40 @@ export default function AdminHistoryPage() {
     month,
     setMonth
   } = useSessionStore();
-  const [limitCount] = useState(30);
-  const [fullCollection, setFullCollection] = useState<Sale[]>([]);
 
-  // Pass branch constraint to get accurate limits per branch
+  const [salesList, setSalesList] = useState<Sale[]>([]);
+  const [currentLastId, setCurrentLastId] = useState<string | undefined>(undefined);
+
+  // Reset list when filters change
+  useEffect(() => {
+    setSalesList([]);
+    setCurrentLastId(undefined);
+  }, [branchId, month]);
+
+  // Pass branchId and month constraints directly to useSales, and disable useFullCache
   const {
     data: salesResult,
     isLoading,
     isFetching,
     refetch,
-  } = useSales(undefined, 5000, undefined, undefined, true); // Always fetch all for Admin
+  } = useSales(branchId || undefined, 30, currentLastId, month || undefined, false);
 
-  const isActuallyLoading = isLoading || (isFetching && fullCollection.length === 0);
+  const isActuallyLoading = isLoading || (isFetching && salesList.length === 0);
 
+  // Update salesList when salesResult changes
   useEffect(() => {
     if (salesResult?.sales) {
-      setFullCollection(salesResult.sales);
+      if (!currentLastId) {
+        setSalesList(salesResult.sales);
+      } else {
+        setSalesList((prev) => {
+          const existingIds = new Set(prev.map((s: Sale) => s.id));
+          const filteredNew = salesResult.sales.filter((s: Sale) => !existingIds.has(s.id));
+          return [...prev, ...filteredNew];
+        });
+      }
     }
-  }, [salesResult?.sales]);
+  }, [salesResult?.sales, currentLastId]);
 
   const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₦';
 
@@ -54,42 +70,12 @@ export default function AdminHistoryPage() {
     }));
   }, [availableMonths]);
 
-  const filteredSales = useMemo(() => {
-    let list = fullCollection;
+  // Use pre-computed server-side stats directly from the query result
+  const totalRevenue = salesResult?.stats?.totalRevenue || 0;
+  const totalProfit = salesResult?.stats?.totalProfit || 0;
+  const totalDiscount = salesResult?.stats?.totalDiscount || 0;
 
-    // Robust branch filter
-    if (branchId) {
-      list = list.filter(s => String(s.branchId).trim() === String(branchId).trim());
-    }
-
-    // Robust month filter
-    if (month) {
-      list = list.filter(s => {
-        const d = toDate(s.createdAt);
-        if (!d) return false;
-        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        return ym === month;
-      });
-    }
-
-    return list;
-  }, [fullCollection, branchId, month]);
-
-  const stats = useMemo(() => {
-    return filteredSales.reduce((acc, s) => {
-      acc.totalRevenue += s.total || 0;
-      acc.totalProfit += s.profit || 0;
-      acc.totalDiscount += s.discount || 0;
-      return acc;
-    }, { totalRevenue: 0, totalProfit: 0, totalDiscount: 0 });
-  }, [filteredSales]);
-
-  const { totalRevenue, totalProfit, totalDiscount } = stats;
-
-  const displaySales = useMemo(() => {
-    // Show top 30 from the current filtered full collection
-    return filteredSales.slice(0, 30);
-  }, [filteredSales]);
+  const displaySales = salesList;
 
   return (
     <div>
@@ -112,9 +98,24 @@ export default function AdminHistoryPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             className="btn btn-ghost"
-            onClick={() => {
+            onClick={async () => {
+              setSalesList([]);
+              setCurrentLastId(undefined);
               const { salesCache } = require('@/lib/cache/salesCache');
               salesCache.invalidate();
+
+              // Trigger a recalculation of stats document for current active filters
+              const params = new URLSearchParams();
+              if (branchId) params.set('branchId', branchId);
+              if (month) params.set('month', month);
+              params.set('limit', '1');
+              params.set('refresh', 'true');
+              try {
+                await fetch(`/api/sales?${params.toString()}`);
+              } catch (e) {
+                console.error(e);
+              }
+
               refetch();
             }}
             disabled={isFetching}
@@ -249,7 +250,7 @@ export default function AdminHistoryPage() {
                   ))}
                 </tr>
               ))
-            : !isActuallyLoading && filteredSales.length === 0 ?
+            : !isActuallyLoading && salesList.length === 0 ?
               <tr>
                 <td
                   colSpan={6}
@@ -325,31 +326,52 @@ export default function AdminHistoryPage() {
         </table>
       </div>
 
-      {/* QUOTA OPTIMIZATION: Simple append pagination commented out as requested */}
-      {/* {salesResult?.hasMore && (
+      {salesResult?.hasMore && (
         <div
           style={{
             display: 'flex',
             justifyContent: 'center',
-            marginTop: 20,
-            marginBottom: 40,
+            marginTop: 28,
+            marginBottom: 48,
           }}>
           <button
-            className='btn-primary'
-            onClick={() => setLastId(allSales[allSales.length - 1]?.id)}
+            onClick={() => {
+              if (salesList.length > 0) {
+                const lastItem = salesList[salesList.length - 1];
+                setCurrentLastId(lastItem.id);
+              }
+            }}
             disabled={isFetching}
             style={{
               width: 'auto',
-              padding: '10px',
-              paddingInline: '20px',
-              border:'none',
-              borderRadius: '12px',
-              opacity: isFetching ? 0.7 : 1,
+              minWidth: 160,
+              padding: '12px 28px',
+              border: 'none',
+              borderRadius: '24px',
+              backgroundColor: 'var(--accent-deep)',
+              color: '#ffffff',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(217, 111, 135, 0.3)',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              opacity: isFetching ? 0.75 : 1,
             }}>
-            {isFetching ? 'Loading...' : 'Load More Sales'}
+            {isFetching ? (
+              <>
+                <RefreshCw size={16} className="spin" />
+                <span>Loading...</span>
+              </>
+            ) : (
+              'Load More Sales'
+            )}
           </button>
         </div>
-      )} */}
+      )}
     </div>
   );
 }
