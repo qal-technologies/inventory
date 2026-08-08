@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
+import admin from 'firebase-admin';
 import {getSession, getBranchSession} from '@/lib/auth/session';
 import { triggerAdminPush } from '@/lib/push/triggerPush';
 
@@ -33,11 +34,22 @@ export async function POST(req: NextRequest) {
       adminDb.collection('products').doc(item.productId),
     );
 
+    const createdAtStr = new Date().toISOString();
+    const monthStr = createdAtStr.substring(0, 7); // YYYY-MM
+
+    const statsRefs = [
+      adminDb.collection('sales_stats').doc('all_all'),
+      adminDb.collection('sales_stats').doc(`branch_${branchId}`),
+      adminDb.collection('sales_stats').doc(`month_${monthStr}`),
+      adminDb.collection('sales_stats').doc(`branch_${branchId}_month_${monthStr}`),
+    ];
+
     await adminDb.runTransaction(async (tx: FirebaseFirestore.Transaction) => {
       pendingPushes.length = 0; // Clear on retry
-      const prodDocs = await Promise.all(
-        prodRefs.map((ref: any) => tx.get(ref)),
-      );
+
+      // Fetch all product and stats documents before executing any writes
+      const prodDocs = await Promise.all(prodRefs.map((ref: any) => tx.get(ref)));
+      const statsDocs: any[] = await Promise.all(statsRefs.map((ref: any) => tx.get(ref)));
 
       for (let i = 0; i < prodDocs.length; i++) {
         const prodDoc = prodDocs[i];
@@ -134,8 +146,23 @@ export async function POST(req: NextRequest) {
         profit: saleProfit,
         profitMargin: Math.round(profitMargin * 100) / 100,
         status: 'completed',
-        createdAt: new Date().toISOString(),
+        createdAt: createdAtStr,
       });
+
+      // Update initialized stats in real-time
+      for (let i = 0; i < statsRefs.length; i++) {
+        const sDoc = statsDocs[i] as admin.firestore.DocumentSnapshot;
+        const sRef = statsRefs[i];
+        if (sDoc.exists && sDoc.data()?.initialized === true) {
+          tx.update(sRef, {
+            totalRevenue: admin.firestore.FieldValue.increment(total),
+            totalProfit: admin.firestore.FieldValue.increment(saleProfit),
+            totalDiscount: admin.firestore.FieldValue.increment(discountAmount),
+            count: admin.firestore.FieldValue.increment(1),
+            updatedAt: createdAtStr,
+          });
+        }
+      }
 
       const saleNotifRef = adminDb.collection('notifications').doc();
       const saleTitle = 'Sale Completed';

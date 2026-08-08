@@ -30,10 +30,6 @@ export async function GET(req: NextRequest) {
         .where('createdAt', '<', end);
     }
 
-    // Clone for stats (without limit/pagination)
-    // Limits the stats query to the last 5000 items to avoid full collection scan if it grows too large
-    const statsQuery = baseQuery.limit(5000);
-
     // Robust query for sales
     let sales = [];
     try {
@@ -64,20 +60,56 @@ export async function GET(req: NextRequest) {
       sales = sales.slice(0, limitCount);
     }
 
-    const statsSnap = await statsQuery.get();
+    // Optimize calculations by reading pre-calculated stats document
+    let statsId = 'all_all';
+    if (branchId && month) {
+      statsId = `branch_${branchId}_month_${month}`;
+    } else if (branchId) {
+      statsId = `branch_${branchId}`;
+    } else if (month) {
+      statsId = `month_${month}`;
+    }
 
-    // Aggregated stats
-    const stats = statsSnap.docs.reduce(
-      (acc:any, doc:any) => {
-        const data = doc.data();
-        acc.totalRevenue += data.total || 0;
-        acc.totalProfit += data.profit || 0;
-        acc.totalDiscount += data.discount || 0;
-        acc.count += 1;
-        return acc;
-      },
-      { totalRevenue: 0, totalProfit: 0, totalDiscount: 0, count: 0 },
-    );
+    const statsRef = adminDb.collection('sales_stats').doc(statsId);
+    const statsDoc = await statsRef.get();
+
+    let stats;
+    const forceRefresh = searchParams.get('refresh') === 'true';
+
+    if (!forceRefresh && statsDoc.exists && statsDoc.data()?.initialized === true) {
+      const sData = statsDoc.data()!;
+      stats = {
+        totalRevenue: sData.totalRevenue || 0,
+        totalProfit: sData.totalProfit || 0,
+        totalDiscount: sData.totalDiscount || 0,
+        count: sData.count || 0,
+      };
+    } else {
+      // Lazy initialization fallback: Aggregate sales from Firestore (capped at 5000 docs)
+      const statsQuery = baseQuery.limit(5000);
+      const statsSnap = await statsQuery.get();
+      stats = statsSnap.docs.reduce(
+        (acc: any, doc: any) => {
+          const data = doc.data();
+          acc.totalRevenue += data.total || 0;
+          acc.totalProfit += data.profit || 0;
+          acc.totalDiscount += data.discount || 0;
+          acc.count += 1;
+          return acc;
+        },
+        { totalRevenue: 0, totalProfit: 0, totalDiscount: 0, count: 0 },
+      );
+
+      // Save stats document as initialized
+      await statsRef.set({
+        initialized: true,
+        totalRevenue: stats.totalRevenue,
+        totalProfit: stats.totalProfit,
+        totalDiscount: stats.totalDiscount,
+        count: stats.count,
+        updatedAt: new Date().toISOString(),
+      });
+    }
 
     return NextResponse.json({
       sales,
