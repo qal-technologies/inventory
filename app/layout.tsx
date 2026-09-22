@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Providers from './providers';
+import { siteConfig } from '@/lib/site-config';
+import AccessDenied from '@/components/AccessDenied';
 
 export const metadata: Metadata = {
   title: 'Skincare Bestie — Inventory & Sales',
@@ -28,6 +30,8 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const isAccessDenied = !siteConfig.production;
+
   return (
     <html lang="en">
       <head>
@@ -37,7 +41,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        {isAccessDenied ? (
+          <AccessDenied />
+        ) : (
+          <Providers>{children}</Providers>
+        )}
       </body>
     </html>
   );
