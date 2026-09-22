@@ -1,5 +1,5 @@
 export const siteConfig = {
-  production: false,
+  production: true,
 };
 
 export type SiteConfig = typeof siteConfig;
